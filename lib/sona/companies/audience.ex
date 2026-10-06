@@ -26,4 +26,26 @@ defmodule Sona.Companies.Audience do
         (is_nil(r.department) or r.department == ^department)
     )
   end
+
+  @doc """
+  The four PubSub topics whose audiences include the team member: their
+  site or every site, crossed with their department or every department
+  (D-006).
+  """
+  def topics(%TeamMember{company_id: company_id, site_id: site_id, department: department}) do
+    for site_id <- [site_id, nil], department <- [department, nil] do
+      topic(company_id, site_id, department)
+    end
+  end
+
+  @doc """
+  The one PubSub topic a record with an audience is broadcast on.
+  """
+  def topic(%{company_id: company_id, site_id: site_id, department: department}) do
+    topic(company_id, site_id, department)
+  end
+
+  defp topic(company_id, site_id, department) do
+    "audience:#{company_id}:#{site_id || "all"}:#{department || "all"}"
+  end
 end

@@ -51,6 +51,13 @@ defmodule Sona.Companies do
   end
 
   @doc """
+  Returns the sites of the scope's company, by name.
+  """
+  def list_sites(%Scope{team_member: %TeamMember{company_id: company_id}}) do
+    Repo.all(from s in Site, where: s.company_id == ^company_id, order_by: s.name)
+  end
+
+  @doc """
   Returns the scope's active colleagues (everyone else active in the
   company), by site and name, with their site.
   """

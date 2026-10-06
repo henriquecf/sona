@@ -10,6 +10,7 @@ alias Sona.Accounts
 alias Sona.Accounts.{Scope, User}
 alias Sona.Chat
 alias Sona.Companies
+alias Sona.Feed
 alias Sona.Repo
 
 # Skip rather than fail, so re-running `mix setup` still finishes.
@@ -144,6 +145,52 @@ else
     "Mateus Silva",
     "Add the butter off the heat, a little at a time. Happy to show you at Friday's tasting."
   )
+
+  ## Announcements: managers post to an audience, and each person acknowledges.
+
+  announce = fn name, attrs ->
+    {:ok, post} = Feed.create_announcement(%Scope{team_member: people[name]}, attrs)
+    post
+  end
+
+  autumn_menu =
+    announce.("Maya Okafor", %{
+      title: "Our autumn menu launches on Monday",
+      body:
+        "Thank you all for the tastings. Every site switches over on Monday. Ask your head chef for the allergen sheet before your first shift."
+    })
+
+  announce.("Tom Hayes", %{
+    title: "New uniforms arrive next week",
+    body: "Please let your manager know your size by Friday.",
+    department: :front_of_house
+  })
+
+  announce.("Priya Shah", %{
+    title: "Tonight: 140 covers and a private party",
+    body:
+      "Briefing at 5:15, doors at 5:30. The back room is closed for a 20-person birthday at 8pm.",
+    site_id: harbour_lane_sites["Soho"].id
+  })
+
+  announce.("Luca Romano", %{
+    title: "Fridge 2 is out of action until 3pm",
+    body: "The engineer is booked. Use the walk-in and label everything you move.",
+    site_id: harbour_lane_sites["Soho"].id,
+    department: :kitchen
+  })
+
+  announce.("Grace O'Neill", %{
+    title: "Fully booked this weekend",
+    body:
+      "Every room is taken from Friday to Sunday. Housekeeping, the extra shifts are on the rota.",
+    site_id: harbour_lane_sites["Brighton"].id
+  })
+
+  # Some people have already read the menu news.
+  for name <- ["Kwame Mensah", "Luca Romano", "Sam Taylor", "Daniel Kim"] do
+    {:ok, _} = Feed.acknowledge(%Scope{team_member: people[name]}, autumn_menu.id)
+  end
 
   ## Northfield Inns: a second company nobody at Harbour Lane can see
 

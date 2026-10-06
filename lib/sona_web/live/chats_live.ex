@@ -119,17 +119,4 @@ defmodule SonaWeb.ChatsLive do
       true -> message.body
     end
   end
-
-  defp first_name(name), do: name |> String.split() |> hd()
-
-  defp audience_label(%{site: nil, department: nil}), do: "Everyone"
-  defp audience_label(%{site: site, department: nil}), do: "Everyone at #{site.name}"
-
-  defp audience_label(%{site: nil, department: department}),
-    do: "#{department_name(department)}, every site"
-
-  defp audience_label(%{site: site, department: department}),
-    do: "#{department_name(department)} at #{site.name}"
-
-  defp department_name(department), do: Phoenix.Naming.humanize(department)
 end

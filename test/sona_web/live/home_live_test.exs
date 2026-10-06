@@ -9,13 +9,15 @@ defmodule SonaWeb.HomeLiveTest do
   alias Sona.Companies
 
   describe "an active team member" do
-    setup :register_and_log_in_team_member
+    test "sees home, greeted by first name", %{conn: conn} do
+      team_member = team_member_fixture(name: "Ana Costa")
+      conn = log_in_user(conn, Accounts.get_user!(team_member.user_id))
 
-    test "sees home, greeted by name", %{conn: conn, team_member: team_member} do
       {:ok, view, _html} = live(conn, ~p"/")
 
       assert has_element?(view, "#home")
-      assert has_element?(view, "#home-greeting", team_member.name)
+      assert has_element?(view, "#home-greeting", "Ana")
+      refute has_element?(view, "#home-greeting", "Costa")
     end
   end
 
