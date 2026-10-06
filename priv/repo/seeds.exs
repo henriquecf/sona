@@ -192,6 +192,55 @@ else
     {:ok, _} = Feed.acknowledge(%Scope{team_member: people[name]}, autumn_menu.id)
   end
 
+  ## Values, and shout-outs that recognise them across sites.
+
+  value = fn company, name, description ->
+    {:ok, value} = Companies.create_value(company, %{name: name, description: description})
+    value
+  end
+
+  make_it_personal =
+    value.(
+      harbour_lane,
+      "Make it personal",
+      "Every guest leaves feeling they were our only guest."
+    )
+
+  own_it = value.(harbour_lane, "Own it", "If you see something that needs doing, it's yours.")
+
+  better_together =
+    value.(harbour_lane, "Better together", "We cover for each other, across every site.")
+
+  shout_out = fn from, to, value, body ->
+    {:ok, _} =
+      Feed.create_shout_out(%Scope{team_member: people[from]}, %{
+        recipient_id: people[to].id,
+        company_value_id: value.id,
+        body: body
+      })
+  end
+
+  shout_out.(
+    "Grace O'Neill",
+    "Elena Popescu",
+    make_it_personal,
+    "A guest left her late mum's ring in room 12. Elena found it, and wrote her a note to go with it. The guest called us in tears."
+  )
+
+  shout_out.(
+    "Priya Shah",
+    "Kwame Mensah",
+    own_it,
+    "Spotted fridge 2 running warm before service and had everything moved in ten minutes."
+  )
+
+  shout_out.(
+    "Sam Taylor",
+    "Mateus Silva",
+    better_together,
+    "Came down from Shoreditch on his day off to show us the squash purée. It hasn't split since!"
+  )
+
   ## Northfield Inns: a second company nobody at Harbour Lane can see
 
   {:ok, northfield} = Companies.create_company(%{name: "Northfield Inns"})
@@ -201,6 +250,7 @@ else
   add_team_member.(york, "Owen Price", :kitchen, :staff)
 
   {:ok, york_team} = Chat.create_channel(northfield, %{name: "York team", site_id: york.id})
+  value.(northfield, "Warm welcome", "Everyone is a regular.")
 
   {:ok, _} =
     Chat.send_message(%Scope{team_member: ruth}, york_team, %{

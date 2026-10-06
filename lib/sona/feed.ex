@@ -1,7 +1,8 @@
 defmodule Sona.Feed do
   @moduledoc """
   The feed: announcements from managers to an audience, which each person
-  in it acknowledges.
+  in it acknowledges, and shout-outs, in which anyone recognises a
+  colleague for living a company value, for the whole company to see.
 
   A team member sees the posts whose audience includes them, plus their
   own (D-004). An announcement from someone else that they haven't
@@ -13,6 +14,7 @@ defmodule Sona.Feed do
   import Ecto.Query, warn: false
 
   alias Sona.Accounts.Scope
+  alias Sona.Companies
   alias Sona.Companies.{Audience, TeamMember}
   alias Sona.Feed.{Acknowledgement, Post}
   alias Sona.Repo
@@ -50,6 +52,44 @@ defmodule Sona.Feed do
   end
 
   def create_announcement(%Scope{team_member: %TeamMember{}}, _attrs), do: {:error, :unauthorized}
+
+  def change_shout_out(%Post{} = post \\ %Post{}, attrs \\ %{}) do
+    Post.shout_out_changeset(post, attrs)
+  end
+
+  @doc """
+  Posts a shout-out from the scope's team member to a colleague, for one of
+  the company's values, and broadcasts it as `{:post_created, post}` to the
+  whole company.
+
+  The recipient must be an active colleague (not yourself); the database
+  holds the value to the same company.
+  """
+  def create_shout_out(%Scope{team_member: %TeamMember{} = author} = scope, attrs) do
+    changeset =
+      %Post{company_id: author.company_id, author_id: author.id}
+      |> Post.shout_out_changeset(attrs)
+      |> validate_colleague(scope)
+
+    with {:ok, post} <- Repo.insert(changeset) do
+      post =
+        %{Repo.preload(post, [:site, :recipient, :company_value]) | author: author}
+
+      Phoenix.PubSub.broadcast(Sona.PubSub, Audience.topic(post), {:post_created, post})
+      {:ok, post}
+    end
+  end
+
+  # The id comes from the client: only an active colleague in the company
+  # can be recognised.
+  defp validate_colleague(changeset, scope) do
+    Ecto.Changeset.validate_change(changeset, :recipient_id, fn :recipient_id, id ->
+      case Companies.get_colleague(scope, id) do
+        nil -> [recipient_id: "isn't one of your colleagues"]
+        _colleague -> []
+      end
+    end)
+  end
 
   @doc """
   Returns the announcements that need the scope's team member's
@@ -131,12 +171,14 @@ defmodule Sona.Feed do
     from p in Post,
       join: author in assoc(p, :author),
       left_join: s in assoc(p, :site),
+      left_join: recipient in assoc(p, :recipient),
+      left_join: value in assoc(p, :company_value),
       left_join: a in Acknowledgement,
       as: :ack,
       on: a.post_id == p.id and a.team_member_id == ^team_member.id,
       where: p.company_id == ^team_member.company_id,
       where: ^dynamic([p], ^Audience.includes(team_member) or p.author_id == ^team_member.id),
-      preload: [author: author, site: s],
+      preload: [author: author, site: s, recipient: recipient, company_value: value],
       select_merge: %{acknowledged_at: a.inserted_at}
   end
 

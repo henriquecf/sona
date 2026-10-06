@@ -91,6 +91,7 @@ defmodule SonaWeb.HomeFeedLiveTest do
   test "only managers get the announcement button", %{conn: conn, manager: manager} do
     {:ok, view, _html} = live(conn, ~p"/")
     refute has_element?(view, "#new-announcement")
+    assert has_element?(view, ~s|#new-shout-out[href="/shout-outs/new"]|)
 
     manager_conn = log_in_user(build_conn(), manager.user)
     {:ok, manager_view, _html} = live(manager_conn, ~p"/")

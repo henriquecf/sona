@@ -19,4 +19,21 @@ defmodule Sona.FeedFixtures do
 
     post
   end
+
+  @doc """
+  A shout-out from `scope` to `recipient` (a team member) for `value`.
+  """
+  def shout_out_fixture(scope, recipient, value, attrs \\ %{}) do
+    {:ok, post} =
+      Feed.create_shout_out(
+        scope,
+        Enum.into(attrs, %{
+          recipient_id: recipient.id,
+          company_value_id: value.id,
+          body: "Thank you!"
+        })
+      )
+
+    post
+  end
 end

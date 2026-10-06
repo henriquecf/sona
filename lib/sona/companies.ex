@@ -12,7 +12,7 @@ defmodule Sona.Companies do
 
   alias Sona.Accounts
   alias Sona.Accounts.{Scope, User}
-  alias Sona.Companies.{Company, Site, TeamMember}
+  alias Sona.Companies.{Company, CompanyValue, Site, TeamMember}
   alias Sona.Repo
 
   def create_company(attrs) do
@@ -48,6 +48,23 @@ defmodule Sona.Companies do
         where: tm.user_id == ^user.id and is_nil(tm.left_at),
         preload: [company: c, site: s]
     )
+  end
+
+  @doc """
+  Adds one of the values a company stands for, which shout-outs recognise.
+  A provisioning operation, like creating sites.
+  """
+  def create_value(%Company{} = company, attrs) do
+    %CompanyValue{company_id: company.id}
+    |> CompanyValue.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Returns the values of the scope's company, by name.
+  """
+  def list_values(%Scope{team_member: %TeamMember{company_id: company_id}}) do
+    Repo.all(from v in CompanyValue, where: v.company_id == ^company_id, order_by: v.name)
   end
 
   @doc """

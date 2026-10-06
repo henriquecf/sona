@@ -2,7 +2,7 @@
 
 A living record of Sona's product-specific design and the decisions behind it. Agents read it before planning a feature and update it in the same commit as any change that makes or changes a decision (see `AGENTS.md` → Git Workflow).
 
-**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), the phone-first app shell (step 5), channels with real-time messages (step 6), direct conversations (step 7a), unread counts (step 7b), and announcements with acknowledgements (step 8). Shout-outs are next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
+**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), the phone-first app shell (step 5), channels with real-time messages (step 6), direct conversations (step 7a), unread counts (step 7b), announcements with acknowledgements (step 8), and shout-outs for company values (step 9). A browser pass and wrap-up are next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
 
 ## Product Context
 
@@ -46,7 +46,7 @@ One Phoenix application (D-001). The domain lives in contexts under `lib/sona/` 
 - **Filtering:**
   - Every query filters by the team member's company. That is necessary but not enough.
   - Conversations and posts are also filtered by audience, or by being one of the two people in a direct conversation (D-004).
-  - Posting an announcement needs the `manager` role, which `Feed` checks itself rather than relying on the screen hiding the button.
+  - Posting an announcement needs the `manager` role, which `Feed` checks itself rather than relying on the screen hiding the button. Any team member can give a shout-out.
 - **Client-supplied ids:** every id the client sends is looked up again through the scope, and each one gets a negative test:
 
 | The client sends | It must resolve to |
@@ -105,11 +105,11 @@ Offboarding and transfers disconnect the person's live sessions (D-003). That wa
 | `companies` | `name` | |
 | `sites` | `company_id`, `name` | Unique `(company_id, name)` |
 | `team_members` | `company_id`, `user_id`, `site_id`, `name`, `department`, `role`, `left_at` | At most one active team member per user: unique `user_id` where `left_at IS NULL`. The site is in the same company. |
-| `company_values` | `company_id`, `name`, `description` | Unique `(company_id, name)` |
+| `company_values` | `company_id`, `name`, `description` | Unique `(company_id, name)`. Created by seeds for now, like channels. |
 | `conversations` | `company_id`, `kind`, `name`, `site_id`, `department`, `team_member_a_id`, `team_member_b_id` | **Channel:** has a name and no team members. **Direct:** has no name, site or department, and `team_member_a_id < team_member_b_id`, so never with yourself. Unique `(team_member_a_id, team_member_b_id)` for direct conversations. Unique `(company_id, name)` for channels. |
 | `messages` | `conversation_id`, `author_id`, `body` | Index on `(conversation_id, id)` |
 | `read_markers` | `conversation_id`, `team_member_id`, `last_read_message_id` | Unique `(team_member_id, conversation_id)`, written as an upsert that only moves forward (`GREATEST`), so a late or repeated read can't make messages unread again |
-| `posts` | `company_id`, `kind`, `author_id`, `title`, `body`, `site_id`, `department`, `recipient_id`, `company_value_id` | **All:** a body of 1 to 4,000 characters. **Announcement:** a title of 1 to 120 characters, and no recipient or value. **Shout-out:** has a recipient and a value, has no site or department (so it reaches the whole company), and the recipient isn't the author. |
+| `posts` | `company_id`, `kind`, `author_id`, `title`, `body`, `site_id`, `department`, `recipient_id`, `company_value_id` | **All:** a body of 1 to 4,000 characters. **Announcement:** a title of 1 to 120 characters, and no recipient or value. **Shout-out:** has a recipient and a value, has no title, site or department (so it reaches the whole company), and the recipient isn't the author. |
 | `acknowledgements` | `post_id`, `team_member_id`, `inserted_at` | Unique `(team_member_id, post_id)`, inserted with `on_conflict: :nothing`, so the first time is kept. `Feed` checks that the post is an announcement from someone else in the team member's audience. |
 
 `left_at` records when someone left. It is set by offboarding at the time they leave, not scheduled ahead, so "active" means `left_at IS NULL` everywhere. Offboarding someone who has already left does nothing.

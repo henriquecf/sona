@@ -9,18 +9,27 @@ defmodule SonaWeb.HomeLive do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} active_tab={:home}>
       <section id="home" class="space-y-6">
-        <div class="flex items-center justify-between gap-3">
+        <div class="space-y-3">
           <h1 id="home-greeting" class="text-2xl font-semibold">
             Hi, {first_name(@current_scope.team_member.name)}
           </h1>
-          <.link
-            :if={@current_scope.team_member.role == :manager}
-            id="new-announcement"
-            navigate={~p"/announcements/new"}
-            class="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-content transition hover:brightness-110 active:scale-95"
-          >
-            <.icon name="hero-megaphone" class="size-5" /> Announce
-          </.link>
+          <div class="flex flex-wrap gap-2">
+            <.link
+              id="new-shout-out"
+              navigate={~p"/shout-outs/new"}
+              class="inline-flex min-h-11 items-center gap-2 rounded-full bg-secondary px-4 text-sm font-semibold text-secondary-content transition hover:brightness-110 active:scale-95"
+            >
+              <.icon name="hero-sparkles" class="size-5" /> Give a shout-out
+            </.link>
+            <.link
+              :if={@current_scope.team_member.role == :manager}
+              id="new-announcement"
+              navigate={~p"/announcements/new"}
+              class="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-content transition hover:brightness-110 active:scale-95"
+            >
+              <.icon name="hero-megaphone" class="size-5" /> Announce
+            </.link>
+          </div>
         </div>
 
         <%!-- Always rendered, so the stream stays mounted; hidden while empty. --%>
@@ -64,7 +73,7 @@ defmodule SonaWeb.HomeLive do
             >
               News from across the company will appear here.
             </li>
-            <li :for={{id, post} <- @streams.feed} id={id}>
+            <li :for={{id, post} <- @streams.feed} id={id} data-kind={post.kind}>
               <.post_card post={post} id={id}>
                 <:action :if={post.acknowledged_at}>
                   <p
@@ -97,6 +106,29 @@ defmodule SonaWeb.HomeLive do
   attr :id, :string, required: true
   attr :highlighted, :boolean, default: false
   slot :action
+
+  defp post_card(%{post: %Post{kind: :shout_out}} = assigns) do
+    ~H"""
+    <article class="space-y-3 rounded-box border border-secondary/30 bg-secondary/5 p-4">
+      <header class="flex items-center gap-3">
+        <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-content">
+          <.icon name="hero-sparkles" class="size-5" />
+        </span>
+        <p class="min-w-0 flex-1 text-sm leading-snug">
+          <span class="font-semibold">{@post.author.name}</span>
+          recognised <span class="font-semibold">{@post.recipient.name}</span>
+          <span class="block text-xs text-base-content/70">
+            <.local_time id={"#{@id}-time"} at={@post.inserted_at} relative />
+          </span>
+        </p>
+      </header>
+      <p class="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-sm font-semibold text-secondary-content">
+        <.icon name="hero-heart-solid" class="size-4" /> {@post.company_value.name}
+      </p>
+      <p class="whitespace-pre-wrap break-words text-base-content/90">{@post.body}</p>
+    </article>
+    """
+  end
 
   defp post_card(assigns) do
     ~H"""
@@ -169,7 +201,7 @@ defmodule SonaWeb.HomeLive do
 
   @impl true
   # Someone else's new announcement needs attention; anything else (your own
-  # post) goes straight into the feed.
+  # post, or a shout-out) goes straight into the feed.
   def handle_info({:post_created, %Post{kind: :announcement} = post}, socket)
       when post.author_id != socket.assigns.current_scope.team_member.id do
     {:noreply, stream_insert(socket, :attention, post, at: 0)}
