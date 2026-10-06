@@ -7,6 +7,34 @@
 # General application configuration
 import Config
 
+config :sona, :scopes,
+  user: [
+    default: true,
+    module: Sona.Accounts.Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :id,
+    schema_table: :users,
+    test_data_fixture: Sona.AccountsFixtures,
+    test_setup_helper: :register_and_log_in_user
+  ],
+  # Company data is owned by a company and filtered by the scope's team
+  # member (D-003). Generate company-owned tables with `--scope company`;
+  # child tables reach their company through their parent, so use `--no-scope`.
+  # Generated migrations reference companies with `on_delete: :delete_all`;
+  # change that to `:nothing` (docs/architecture.md, Data Model).
+  company: [
+    module: Sona.Accounts.Scope,
+    assign_key: :current_scope,
+    access_path: [:team_member, :company_id],
+    schema_key: :company_id,
+    schema_type: :id,
+    schema_table: :companies,
+    test_data_fixture: Sona.CompaniesFixtures,
+    test_setup_helper: :register_and_log_in_team_member
+  ]
+
 config :sona,
   ecto_repos: [Sona.Repo],
   generators: [timestamp_type: :utc_datetime]

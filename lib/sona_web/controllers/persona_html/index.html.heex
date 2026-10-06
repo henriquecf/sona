@@ -1,0 +1,42 @@
+<Layouts.app flash={@flash} current_scope={@current_scope}>
+  <section id="personas" class="mx-auto max-w-md space-y-8">
+    <header class="space-y-1">
+      <h1 class="text-2xl font-semibold">Sign in as…</h1>
+      <p class="text-sm text-base-content/70">
+        Dev only. Open each persona in its own browser profile or private window to see real-time updates between them.
+      </p>
+    </header>
+
+    <p :if={@companies == []} id="personas-empty" class="text-base-content/70">
+      No team members yet. Run <code>mix ecto.reset</code> to load the demo data.
+    </p>
+
+    <div :for={team_members <- @companies} class="space-y-2">
+      <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60">
+        {hd(team_members).company.name}
+      </h2>
+      <ul class="divide-y divide-base-300 rounded-xl border border-base-300">
+        <li :for={team_member <- team_members} id={"persona-#{team_member.id}"}>
+          <.link
+            href={~p"/dev/personas/#{team_member}"}
+            method="post"
+            class="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-base-200"
+          >
+            <span>
+              <span class="block font-medium">{team_member.name}</span>
+              <span class="block text-sm text-base-content/70">
+                {team_member.site.name} · {Phoenix.Naming.humanize(team_member.department)}
+              </span>
+            </span>
+            <span
+              :if={team_member.role == :manager}
+              class="rounded-full bg-base-200 px-2 py-0.5 text-xs font-medium"
+            >
+              Manager
+            </span>
+          </.link>
+        </li>
+      </ul>
+    </div>
+  </section>
+</Layouts.app>
