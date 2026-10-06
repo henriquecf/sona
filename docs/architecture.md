@@ -2,7 +2,7 @@
 
 A living record of Sona's product-specific design and the decisions behind it. Agents read it before planning a feature and update it in the same commit as any change that makes or changes a decision (see `AGENTS.md` → Git Workflow).
 
-**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), the phone-first app shell (step 5), and channels with real-time messages (step 6). Direct conversations, unread counts and the feed are next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
+**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), the phone-first app shell (step 5), channels with real-time messages (step 6), and direct conversations (step 7a). Unread counts and the feed are next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
 
 ## Product Context
 
@@ -77,8 +77,8 @@ They are designed for phones first (D-007).
 
 | Topic | Carries | Subscribers |
 |-------|---------|-------------|
-| `conversation:<id>` | New messages | The open conversation and the chats list, only for conversations fetched through the scope |
-| `team_member:<id>` | A new direct conversation's first message, so the other person's chats list can subscribe to it | That team member's chats list |
+| `conversation:<id>` | New messages | The open conversation (any kind), and the chats list for channels, only for conversations fetched through the scope |
+| `team_member:<id>` | Every direct message this person sends or receives, so a conversation that is new to them appears in their chats list, in every tab | That team member's chats lists |
 | `audience:<company_id>:<site_id or all>:<department or all>` | New posts for that audience | Each team member, on the four audience topics that include them |
 
 Offboarding and transfers disconnect the person's live sessions (D-003). That way a stale set of subscriptions can't outlive the change.
@@ -248,7 +248,8 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
   - **Changes that move people:** offboarding and transfers disconnect live sessions (D-003), so subscriptions can't go stale.
 - **Consequences:**
   - **No permission checks in `handle_info`.**
-  - **Chats list subscriptions:** one per conversation, which is fine for the handful each team member has.
+  - **Chats list subscriptions:** one per channel plus the team member's own topic, so each message reaches a list once.
+  - **Fan-out cost:** the chats list reloads (two queries) on every message in any of its conversations, so a channel message costs one reload per member viewing their list. Fine for a POC. At scale, the list would update the one conversation in place.
   - **Presence:** "who's online" is not built yet.
 
 ### D-007: Phone-first LiveView, no native app (2026-10-06)

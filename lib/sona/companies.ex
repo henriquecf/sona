@@ -11,7 +11,7 @@ defmodule Sona.Companies do
   import Ecto.Query, warn: false
 
   alias Sona.Accounts
-  alias Sona.Accounts.User
+  alias Sona.Accounts.{Scope, User}
   alias Sona.Companies.{Company, Site, TeamMember}
   alias Sona.Repo
 
@@ -48,6 +48,33 @@ defmodule Sona.Companies do
         where: tm.user_id == ^user.id and is_nil(tm.left_at),
         preload: [company: c, site: s]
     )
+  end
+
+  @doc """
+  Returns the scope's active colleagues (everyone else active in the
+  company), by site and name, with their site.
+  """
+  def list_colleagues(%Scope{team_member: %TeamMember{} = team_member}) do
+    Repo.all(
+      from tm in colleagues(team_member),
+        join: s in assoc(tm, :site),
+        order_by: [s.name, tm.name],
+        preload: [site: s]
+    )
+  end
+
+  @doc """
+  Gets one of the scope's active colleagues, or `nil` for any other id:
+  yourself, someone who has left, or another company's team member.
+  """
+  def get_colleague(%Scope{team_member: %TeamMember{} = team_member}, id) do
+    Repo.get(colleagues(team_member), id)
+  end
+
+  defp colleagues(%TeamMember{} = team_member) do
+    from tm in TeamMember,
+      where: tm.company_id == ^team_member.company_id,
+      where: is_nil(tm.left_at) and tm.id != ^team_member.id
   end
 
   @doc """

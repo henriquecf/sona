@@ -14,6 +14,9 @@ defmodule Sona.Chat.Conversation do
     belongs_to :team_member_a, TeamMember
     belongs_to :team_member_b, TeamMember
 
+    # The latest message, set by `Sona.Chat.list_conversations/1`.
+    field :last_message, :any, virtual: true
+
     timestamps(type: :utc_datetime)
   end
 
@@ -32,5 +35,25 @@ defmodule Sona.Chat.Conversation do
     |> check_constraint(:kind, name: :kind_must_be_known)
     |> check_constraint(:department, name: :department_must_be_known)
     |> check_constraint(:name, name: :conversation_shape)
+  end
+
+  @doc """
+  A changeset for a direct conversation between two team members, stored
+  in id order (`team_member_a_id < team_member_b_id`, D-004).
+  """
+  def direct_changeset(conversation, team_member_a_id, team_member_b_id) do
+    conversation
+    |> change(
+      kind: :direct,
+      team_member_a_id: team_member_a_id,
+      team_member_b_id: team_member_b_id
+    )
+    |> foreign_key_constraint(:company_id)
+    |> foreign_key_constraint(:team_member_a_id)
+    |> foreign_key_constraint(:team_member_b_id)
+    |> unique_constraint([:team_member_a_id, :team_member_b_id],
+      name: :conversations_direct_pair_index
+    )
+    |> check_constraint(:team_member_b_id, name: :conversation_shape)
   end
 end

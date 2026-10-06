@@ -87,6 +87,7 @@ defmodule SonaWeb do
       # Core UI components
       import SonaWeb.CoreComponents
       import SonaWeb.TeamComponents
+      import SonaWeb.TimeComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

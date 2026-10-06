@@ -25,6 +25,44 @@ defmodule SonaWeb.ChatsLiveTest do
     refute has_element?(view, "#conversations-#{other_company.id}")
   end
 
+  test "a colleague's channel message moves that channel to the top, with a preview", %{
+    conn: conn,
+    team_member: team_member
+  } do
+    quiet = channel_fixture(company: team_member.company, name: "A quiet channel")
+    busy = channel_fixture(company: team_member.company, name: "Busy")
+
+    colleague =
+      company_scope_fixture(team_member_fixture(site: team_member.site, name: "Kwame Mensah"))
+
+    {:ok, view, _html} = live(conn, ~p"/chats")
+    message_fixture(colleague, busy, body: "Doors in 10")
+
+    assert has_element?(view, "#conversations-#{busy.id}", "Kwame: Doors in 10")
+    assert conversation_ids(view) == ["conversations-#{busy.id}", "conversations-#{quiet.id}"]
+  end
+
+  test "your own last message is previewed as yours", %{
+    conn: conn,
+    scope: scope,
+    team_member: team_member
+  } do
+    channel = channel_fixture(company: team_member.company)
+    message_fixture(scope, channel, body: "On my way")
+
+    {:ok, view, _html} = live(conn, ~p"/chats")
+
+    assert has_element?(view, "#conversations-#{channel.id}", "You: On my way")
+  end
+
+  defp conversation_ids(view) do
+    view
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("#conversations > li:not(#conversations-empty)")
+    |> LazyHTML.attribute("id")
+  end
+
   test "lists nothing but the empty state when there are no conversations", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/chats")
 

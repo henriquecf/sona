@@ -67,6 +67,7 @@ defmodule SonaWeb.Router do
       ] do
       live "/", HomeLive, :index
       live "/chats", ChatsLive, :index
+      live "/chats/new", NewConversationLive, :new
       live "/chats/:id", ConversationLive, :show
     end
 

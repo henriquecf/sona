@@ -7,7 +7,7 @@ defmodule SonaWeb.ConversationLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} back={~p"/chats"}>
-      <:title>{@conversation.name}</:title>
+      <:title>{@title}</:title>
 
       <div class="flex flex-1 flex-col pb-20">
         <div :if={@more?} class="mb-4 flex justify-center">
@@ -46,14 +46,11 @@ defmodule SonaWeb.ConversationLive do
               </p>
               <div class="rounded-2xl rounded-bl-md bg-base-200 px-3 py-2 group-data-mine:rounded-bl-2xl group-data-mine:rounded-br-md group-data-mine:bg-primary group-data-mine:text-primary-content">
                 <p class="whitespace-pre-wrap break-words">{message.body}</p>
-                <time
+                <.local_time
                   id={"#{id}-time"}
-                  phx-hook=".LocalTime"
-                  datetime={DateTime.to_iso8601(message.inserted_at)}
+                  at={message.inserted_at}
                   class="mt-0.5 block text-right text-[11px] opacity-70"
-                >
-                  {Calendar.strftime(message.inserted_at, "%H:%M")}
-                </time>
+                />
               </div>
             </div>
           </li>
@@ -61,7 +58,15 @@ defmodule SonaWeb.ConversationLive do
       </div>
 
       <div class="fixed inset-x-0 bottom-0 z-20 border-t border-base-300 bg-base-100/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+        <p
+          :if={@recipient_left?}
+          id="recipient-left"
+          class="mx-auto max-w-lg px-4 py-4 text-center text-sm text-base-content/70"
+        >
+          {@title} has left, so you can read this conversation but not reply.
+        </p>
         <.form
+          :if={!@recipient_left?}
           for={@form}
           id="message-form"
           phx-change="validate"
@@ -110,17 +115,6 @@ defmodule SonaWeb.ConversationLive do
           scrollToLatest() { window.scrollTo(0, document.documentElement.scrollHeight) }
         }
       </script>
-      <script :type={Phoenix.LiveView.ColocatedHook} name=".LocalTime">
-        // The server renders UTC; show the reader's local time instead.
-        export default {
-          mounted() { this.render() },
-          updated() { this.render() },
-          render() {
-            const time = new Date(this.el.getAttribute("datetime"))
-            this.el.textContent = time.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})
-          }
-        }
-      </script>
     </Layouts.app>
     """
   end
@@ -136,9 +130,14 @@ defmodule SonaWeb.ConversationLive do
 
     messages = Chat.list_messages(scope, conversation)
 
+    title = Chat.conversation_name(scope, conversation)
+    recipient = Chat.other_team_member(scope, conversation)
+
     {:ok,
      socket
-     |> assign(:page_title, conversation.name)
+     |> assign(:page_title, title)
+     |> assign(:title, title)
+     |> assign(:recipient_left?, recipient != nil and recipient.left_at != nil)
      |> assign(:conversation, conversation)
      |> assign_page(messages)
      |> assign_form(Chat.change_message())
@@ -161,6 +160,9 @@ defmodule SonaWeb.ConversationLive do
          socket
          |> stream_insert(:messages, message)
          |> assign_form(Chat.change_message())}
+
+      {:error, :recipient_left} ->
+        {:noreply, assign(socket, :recipient_left?, true)}
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}

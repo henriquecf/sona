@@ -94,6 +94,26 @@ defmodule Sona.ChatTest do
     end
   end
 
+  describe "list_conversations/1 activity" do
+    test "puts the most recently active first, each with its latest message and author", %{
+      company: company,
+      scope: scope
+    } do
+      quiet = channel_fixture(company: company, name: "A quiet channel")
+      busy = channel_fixture(company: company, name: "Busy")
+      later = channel_fixture(company: company, name: "Later")
+      message_fixture(scope, busy, body: "first")
+      message_fixture(scope, later, body: "second")
+      latest = message_fixture(scope, busy, body: "third")
+
+      assert [first, second, third] = Chat.list_conversations(scope)
+      assert {first.id, second.id, third.id} == {busy.id, later.id, quiet.id}
+      assert first.last_message.id == latest.id
+      assert first.last_message.author.name == scope.team_member.name
+      assert third.last_message == nil
+    end
+  end
+
   describe "get_conversation!/2" do
     test "returns a channel in your audience", %{company: company, scope: scope} do
       channel = channel_fixture(company: company)
