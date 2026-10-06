@@ -45,8 +45,23 @@ defmodule SonaWeb.ChatsLive do
                   class="shrink-0 text-xs text-base-content/60"
                 />
               </span>
-              <span class="block truncate text-sm text-base-content/70">
-                {preview(conversation, @current_scope)}
+              <span class="flex items-center justify-between gap-2">
+                <span class={[
+                  "truncate text-sm",
+                  if(conversation.unread_count > 0,
+                    do: "font-medium text-base-content",
+                    else: "text-base-content/70"
+                  )
+                ]}>
+                  {preview(conversation, @current_scope)}
+                </span>
+                <span
+                  :if={conversation.unread_count > 0}
+                  data-role="unread"
+                  class="inline-flex min-w-6 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-content"
+                >
+                  {conversation.unread_count}<span class="sr-only"> unread</span>
+                </span>
               </span>
             </span>
           </.link>
@@ -84,7 +99,7 @@ defmodule SonaWeb.ChatsLive do
   end
 
   # Any new message can reorder the list or add a direct conversation, so
-  # reload it (two queries): a team member has a handful of conversations.
+  # reload it (three queries): a team member has a handful of conversations.
   @impl true
   def handle_info({:message_created, _message}, socket) do
     {:noreply, load_conversations(socket)}

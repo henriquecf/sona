@@ -2,7 +2,7 @@
 
 A living record of Sona's product-specific design and the decisions behind it. Agents read it before planning a feature and update it in the same commit as any change that makes or changes a decision (see `AGENTS.md` → Git Workflow).
 
-**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), the phone-first app shell (step 5), channels with real-time messages (step 6), and direct conversations (step 7a). Unread counts and the feed are next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
+**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), the phone-first app shell (step 5), channels with real-time messages (step 6), direct conversations (step 7a), and unread counts (step 7b). The feed is next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
 
 ## Product Context
 
@@ -70,6 +70,7 @@ They are designed for phones first (D-007).
   - **The feed:** announcements and shout-outs, newest first, paginated.
 - **Chats:**
   - **The list:** your conversations, with unread counts.
+  - **Reading:** opening a conversation reads it, and so does a message arriving while it's open. The first, static render doesn't count.
   - **A conversation:** its messages in real time, with older history loaded on demand.
   - **New direct conversation:** you can start one with a colleague from here.
 
@@ -107,7 +108,7 @@ Offboarding and transfers disconnect the person's live sessions (D-003). That wa
 | `company_values` | `company_id`, `name`, `description` | Unique `(company_id, name)` |
 | `conversations` | `company_id`, `kind`, `name`, `site_id`, `department`, `team_member_a_id`, `team_member_b_id` | **Channel:** has a name and no team members. **Direct:** has no name, site or department, and `team_member_a_id < team_member_b_id`, so never with yourself. Unique `(team_member_a_id, team_member_b_id)` for direct conversations. Unique `(company_id, name)` for channels. |
 | `messages` | `conversation_id`, `author_id`, `body` | Index on `(conversation_id, id)` |
-| `read_markers` | `conversation_id`, `team_member_id`, `last_read_message_id` | Unique `(conversation_id, team_member_id)`, written as an upsert |
+| `read_markers` | `conversation_id`, `team_member_id`, `last_read_message_id` | Unique `(team_member_id, conversation_id)`, written as an upsert that only moves forward (`GREATEST`), so a late or repeated read can't make messages unread again |
 | `posts` | `company_id`, `kind`, `author_id`, `body`, `site_id`, `department`, `recipient_id`, `company_value_id` | **Announcement:** no recipient or value. **Shout-out:** has a recipient and a value, has no site or department (so it reaches the whole company), and the recipient isn't the author. |
 | `acknowledgements` | `post_id`, `team_member_id`, `inserted_at` | Unique `(post_id, team_member_id)`, inserted with `on_conflict: :nothing`. `Feed` checks that the post is an announcement. |
 
@@ -249,7 +250,11 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
 - **Consequences:**
   - **No permission checks in `handle_info`.**
   - **Chats list subscriptions:** one per channel plus the team member's own topic, so each message reaches a list once.
-  - **Fan-out cost:** the chats list reloads (two queries) on every message in any of its conversations, so a channel message costs one reload per member viewing their list. Fine for a POC. At scale, the list would update the one conversation in place.
+  - **Fan-out cost:**
+    - **Chats lists:** each open list reloads (three queries) on every message in any of its conversations, so a channel message costs one reload per member viewing their list.
+    - **Open conversations:** each one marks every arriving message read (a lookup and an upsert).
+    - **Verdict:** fine for a POC. At scale, the list would update the one conversation in place, and reads would be batched.
+  - **Unread counts:** past a read marker, a count is an index range scan. A channel someone has never opened has no marker, so its count scans everything since they joined. An index on `messages (conversation_id, inserted_at)` would fix that when channels get long.
   - **Presence:** "who's online" is not built yet.
 
 ### D-007: Phone-first LiveView, no native app (2026-10-06)
@@ -276,4 +281,8 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
 - **Phone sign-in:** one-time codes by SMS for team members without an email address.
 - **Departments per company:** the fixed list won't fit every business (spa, events, security). Move it to a table when a customer needs their own.
 - **More than one company or site:** people who work for two companies, and team members who cover several sites.
+- **Unread counts:**
+  - **Other tabs:** reading in one tab doesn't clear the badge in a chats list open in another.
+  - **No cap:** counts aren't capped ("99+").
+  - **Transfers:** once they exist, a transfer would need a new baseline, or channels at the new site show history since the person joined the company as unread.
 - **Translation and catch-up summaries:** for multilingual crews and people coming back from days off, using an LLM API called through `Req`.

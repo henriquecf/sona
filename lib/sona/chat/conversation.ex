@@ -14,8 +14,9 @@ defmodule Sona.Chat.Conversation do
     belongs_to :team_member_a, TeamMember
     belongs_to :team_member_b, TeamMember
 
-    # The latest message, set by `Sona.Chat.list_conversations/1`.
+    # Set by `Sona.Chat.list_conversations/1` for the scope's team member.
     field :last_message, :any, virtual: true
+    field :unread_count, :integer, virtual: true, default: 0
 
     timestamps(type: :utc_datetime)
   end

@@ -130,6 +130,10 @@ defmodule SonaWeb.ConversationLive do
 
     messages = Chat.list_messages(scope, conversation)
 
+    # Opening a conversation reads it. Only on the live mount: the first,
+    # static render isn't someone reading.
+    if connected?(socket) and messages != [], do: Chat.mark_read(scope, List.last(messages))
+
     title = Chat.conversation_name(scope, conversation)
     recipient = Chat.other_team_member(scope, conversation)
 
@@ -182,6 +186,8 @@ defmodule SonaWeb.ConversationLive do
 
   @impl true
   def handle_info({:message_created, message}, socket) do
+    # The conversation is open, so its new messages are read as they arrive.
+    Chat.mark_read(socket.assigns.current_scope, message)
     {:noreply, stream_insert(socket, :messages, message)}
   end
 

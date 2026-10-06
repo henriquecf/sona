@@ -13,7 +13,7 @@ defmodule Sona.Chat do
   import Ecto.Query, warn: false
 
   alias Sona.Accounts.Scope
-  alias Sona.Chat.{Conversation, Message}
+  alias Sona.Chat.{Conversation, Message, ReadMarker}
   alias Sona.Companies
   alias Sona.Companies.{Audience, Company, TeamMember}
   alias Sona.Repo
@@ -64,9 +64,11 @@ defmodule Sona.Chat do
   end
 
   @doc """
-  Returns the conversations visible to the scope's team member, with
-  their latest message (and its author) in `last_message`, most recently
-  active first. Direct conversations without a message are left out.
+  Returns the conversations visible to the scope's team member, most
+  recently active first, each with its latest message (and author) in
+  `last_message` and how many colleagues' messages the team member hasn't
+  read in `unread_count`. Direct conversations without a message are left
+  out.
   """
   def list_conversations(%Scope{team_member: %TeamMember{} = team_member}) do
     conversations =
@@ -78,10 +80,14 @@ defmodule Sona.Chat do
           preload: [site: s, team_member_a: a, team_member_b: b]
       )
 
-    last_messages = latest_messages(Enum.map(conversations, & &1.id))
+    ids = Enum.map(conversations, & &1.id)
+    last_messages = latest_messages(ids)
+    unread_counts = unread_counts(team_member, ids)
 
     conversations
-    |> Enum.map(&%{&1 | last_message: last_messages[&1.id]})
+    |> Enum.map(
+      &%{&1 | last_message: last_messages[&1.id], unread_count: Map.get(unread_counts, &1.id, 0)}
+    )
     |> Enum.reject(&(&1.kind == :direct and is_nil(&1.last_message)))
     |> Enum.sort_by(&recency/1)
   end
@@ -112,6 +118,35 @@ defmodule Sona.Chat do
         preload: [author: a]
     )
     |> Map.new(&{&1.conversation_id, &1})
+  end
+
+  # Colleagues' messages after the team member's read marker. Without a
+  # marker, only those since they joined count (D-004), so a new starter
+  # isn't greeted by a channel's whole history as unread.
+  defp unread_counts(%TeamMember{} = team_member, conversation_ids) do
+    # Counted per conversation through a lateral subquery, so each count is
+    # an index range scan on messages (conversation_id, id) past the marker.
+    unread =
+      from m in Message,
+        where: m.conversation_id == parent_as(:conversation).id,
+        where: m.author_id != ^team_member.id,
+        where: m.id > coalesce(parent_as(:marker).last_read_message_id, 0),
+        where: not is_nil(parent_as(:marker).id) or m.inserted_at >= ^team_member.inserted_at,
+        select: %{count: count()}
+
+    Repo.all(
+      from c in Conversation,
+        as: :conversation,
+        left_join: r in ReadMarker,
+        as: :marker,
+        on: r.conversation_id == c.id and r.team_member_id == ^team_member.id,
+        where: c.id in ^conversation_ids,
+        inner_lateral_join: u in subquery(unread),
+        on: true,
+        where: u.count > 0,
+        select: {c.id, u.count}
+    )
+    |> Map.new()
   end
 
   defp recency(%Conversation{last_message: nil, name: name}), do: {1, 0, name}
@@ -242,6 +277,40 @@ defmodule Sona.Chat do
           {:error, changeset}
       end
     end
+  end
+
+  @doc """
+  Records that the scope's team member has read their conversation up to
+  `message`. The marker only moves forward, so a late or repeated call
+  can't make read messages unread again.
+
+  The conversation is looked up through the scope: raises
+  `Ecto.NoResultsError` for a message in a conversation the team member
+  can't see.
+  """
+  def mark_read(%Scope{team_member: %TeamMember{} = team_member} = scope, %Message{} = message) do
+    conversation = get_conversation!(scope, message.conversation_id)
+
+    Repo.insert!(
+      %ReadMarker{
+        conversation_id: conversation.id,
+        team_member_id: team_member.id,
+        last_read_message_id: message.id
+      },
+      on_conflict:
+        from(r in ReadMarker,
+          update: [
+            set: [
+              last_read_message_id:
+                fragment("GREATEST(?, EXCLUDED.last_read_message_id)", r.last_read_message_id),
+              updated_at: fragment("EXCLUDED.updated_at")
+            ]
+          ]
+        ),
+      conflict_target: [:team_member_id, :conversation_id]
+    )
+
+    :ok
   end
 
   @doc """
