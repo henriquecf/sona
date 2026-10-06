@@ -35,3 +35,5 @@ sona-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Personal Claude Code settings (shared settings live in .claude/settings.json).
+/.claude/settings.local.json
