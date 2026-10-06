@@ -57,6 +57,30 @@ defmodule SonaWeb.ConnCase do
   end
 
   @doc """
+  Setup helper that creates an active team member and logs their user in.
+
+      setup :register_and_log_in_team_member
+
+  It stores an updated connection, the user, the team member and their
+  scope in the test context.
+  """
+  def register_and_log_in_team_member(%{conn: conn} = context) do
+    scope = Sona.CompaniesFixtures.company_scope_fixture()
+
+    opts =
+      context
+      |> Map.take([:token_authenticated_at])
+      |> Enum.into([])
+
+    %{
+      conn: log_in_user(conn, scope.user, opts),
+      user: scope.user,
+      team_member: scope.team_member,
+      scope: scope
+    }
+  end
+
+  @doc """
   Logs the given `user` into the `conn`.
 
   It returns an updated `conn`.

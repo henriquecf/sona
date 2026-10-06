@@ -6,6 +6,8 @@ defmodule SonaWeb.UserAuth do
 
   alias Sona.Accounts
   alias Sona.Accounts.Scope
+  alias Sona.Companies
+  alias Sona.Companies.TeamMember
 
   # Make the remember me cookie valid for 14 days. This should match
   # the session validity setting in UserToken.
@@ -57,7 +59,7 @@ defmodule SonaWeb.UserAuth do
     conn
     |> renew_session(nil)
     |> delete_resp_cookie(@remember_me_cookie, @remember_me_options)
-    |> redirect(to: ~p"/")
+    |> redirect(to: ~p"/users/log-in")
   end
 
   @doc """
@@ -69,7 +71,7 @@ defmodule SonaWeb.UserAuth do
     with {token, conn} <- ensure_user_token(conn),
          {user, token_inserted_at} <- Accounts.get_user_by_session_token(token) do
       conn
-      |> assign(:current_scope, Scope.for_user(user))
+      |> assign(:current_scope, scope_for(user))
       |> maybe_reissue_user_session_token(user, token_inserted_at)
     else
       nil -> assign(conn, :current_scope, Scope.for_user(nil))
@@ -194,6 +196,11 @@ defmodule SonaWeb.UserAuth do
       on user_token.
       Redirects to login page if there's no logged user.
 
+    * `:require_team_member` - Requires an active team member in the
+      scope. Redirects anyone else (never added, or has left) to
+      `/no-team`. Mount it after `:require_authenticated`, which handles
+      signed-out visitors.
+
   ## Examples
 
   Use the `on_mount` lifecycle macro in LiveViews to mount or authenticate
@@ -231,6 +238,15 @@ defmodule SonaWeb.UserAuth do
     end
   end
 
+  def on_mount(:require_team_member, _params, session, socket) do
+    socket = mount_current_scope(socket, session)
+
+    case socket.assigns.current_scope do
+      %Scope{team_member: %TeamMember{}} -> {:cont, socket}
+      _ -> {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/no-team")}
+    end
+  end
+
   def on_mount(:require_sudo_mode, _params, session, socket) do
     socket = mount_current_scope(socket, session)
 
@@ -253,8 +269,18 @@ defmodule SonaWeb.UserAuth do
           Accounts.get_user_by_session_token(user_token)
         end || {nil, nil}
 
-      Scope.for_user(user)
+      scope_for(user)
     end)
+  end
+
+  # The scope carries the user's active team member, so company data can be
+  # filtered by its company (D-003).
+  defp scope_for(nil), do: Scope.for_user(nil)
+
+  defp scope_for(user) do
+    user
+    |> Scope.for_user()
+    |> Scope.put_team_member(Companies.get_active_team_member(user))
   end
 
   @doc "Returns the path to redirect to after log in."

@@ -18,7 +18,7 @@ defmodule Sona.Accounts.Scope do
 
   alias Sona.Accounts.User
 
-  defstruct user: nil
+  defstruct user: nil, team_member: nil
 
   @doc """
   Creates a scope for the given user.
@@ -30,4 +30,13 @@ defmodule Sona.Accounts.Scope do
   end
 
   def for_user(nil), do: nil
+
+  @doc """
+  Adds the user's active team member (or `nil` if they aren't on a team).
+
+  Company data is filtered by the team member's company (D-003).
+  """
+  def put_team_member(%__MODULE__{} = scope, team_member) do
+    %{scope | team_member: team_member}
+  end
 end

@@ -7,6 +7,7 @@ defmodule SonaWeb.UserAuthTest do
   alias SonaWeb.UserAuth
 
   import Sona.AccountsFixtures
+  import Sona.CompaniesFixtures
 
   @remember_me_cookie "_sona_web_user_remember_me"
   @remember_me_cookie_max_age 60 * 60 * 24 * 14
@@ -131,7 +132,7 @@ defmodule SonaWeb.UserAuthTest do
       refute get_session(conn, :user_token)
       refute conn.cookies[@remember_me_cookie]
       assert %{max_age: 0} = conn.resp_cookies[@remember_me_cookie]
-      assert redirected_to(conn) == ~p"/"
+      assert redirected_to(conn) == ~p"/users/log-in"
       refute Accounts.get_user_by_session_token(user_token)
     end
 
@@ -150,7 +151,7 @@ defmodule SonaWeb.UserAuthTest do
       conn = conn |> fetch_cookies() |> UserAuth.log_out_user()
       refute get_session(conn, :user_token)
       assert %{max_age: 0} = conn.resp_cookies[@remember_me_cookie]
-      assert redirected_to(conn) == ~p"/"
+      assert redirected_to(conn) == ~p"/users/log-in"
     end
   end
 
@@ -164,6 +165,25 @@ defmodule SonaWeb.UserAuthTest do
       assert conn.assigns.current_scope.user.id == user.id
       assert conn.assigns.current_scope.user.authenticated_at == user.authenticated_at
       assert get_session(conn, :user_token) == user_token
+    end
+
+    test "adds the user's active team member to the scope", %{conn: conn} do
+      team_member = team_member_fixture()
+      user_token = Accounts.generate_user_session_token(Accounts.get_user!(team_member.user_id))
+
+      conn =
+        conn |> put_session(:user_token, user_token) |> UserAuth.fetch_current_scope_for_user([])
+
+      assert conn.assigns.current_scope.team_member.id == team_member.id
+    end
+
+    test "leaves the team member out for a user who isn't on a team", %{conn: conn, user: user} do
+      user_token = Accounts.generate_user_session_token(user)
+
+      conn =
+        conn |> put_session(:user_token, user_token) |> UserAuth.fetch_current_scope_for_user([])
+
+      assert conn.assigns.current_scope.team_member == nil
     end
 
     test "authenticates user from cookies", %{conn: conn, user: user} do
@@ -290,6 +310,48 @@ defmodule SonaWeb.UserAuthTest do
 
       {:halt, updated_socket} = UserAuth.on_mount(:require_authenticated, %{}, session, socket)
       assert updated_socket.assigns.current_scope == nil
+    end
+  end
+
+  describe "on_mount :require_team_member" do
+    setup do
+      %{
+        socket: %LiveView.Socket{
+          endpoint: SonaWeb.Endpoint,
+          assigns: %{__changed__: %{}, flash: %{}}
+        }
+      }
+    end
+
+    test "continues with the active team member in the scope", %{conn: conn, socket: socket} do
+      team_member = team_member_fixture()
+      user_token = Accounts.generate_user_session_token(Accounts.get_user!(team_member.user_id))
+      session = conn |> put_session(:user_token, user_token) |> get_session()
+
+      {:cont, updated_socket} = UserAuth.on_mount(:require_team_member, %{}, session, socket)
+
+      assert updated_socket.assigns.current_scope.team_member.id == team_member.id
+    end
+
+    test "sends a user who isn't on a team to /no-team", %{conn: conn, user: user, socket: socket} do
+      user_token = Accounts.generate_user_session_token(user)
+      session = conn |> put_session(:user_token, user_token) |> get_session()
+
+      {:halt, updated_socket} = UserAuth.on_mount(:require_team_member, %{}, session, socket)
+
+      assert {:redirect, %{to: "/no-team"}} = updated_socket.redirected
+    end
+
+    test "sends a team member who has left to /no-team", %{conn: conn, socket: socket} do
+      team_member = team_member_fixture()
+      user = Accounts.get_user!(team_member.user_id)
+      {:ok, _} = Sona.Companies.offboard_team_member(team_member, DateTime.utc_now(:second))
+      user_token = Accounts.generate_user_session_token(user)
+      session = conn |> put_session(:user_token, user_token) |> get_session()
+
+      {:halt, updated_socket} = UserAuth.on_mount(:require_team_member, %{}, session, socket)
+
+      assert {:redirect, %{to: "/no-team"}} = updated_socket.redirected
     end
   end
 

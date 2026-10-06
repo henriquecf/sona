@@ -17,12 +17,6 @@ defmodule SonaWeb.Router do
     plug :accepts, ["json"]
   end
 
-  scope "/", SonaWeb do
-    pipe_through :browser
-
-    get "/", PageController, :home
-  end
-
   # Other scopes may use custom stacks.
   # scope "/api", SonaWeb do
   #   pipe_through :api
@@ -54,6 +48,16 @@ defmodule SonaWeb.Router do
       on_mount: [{SonaWeb.UserAuth, :require_authenticated}] do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+      live "/no-team", NoTeamLive, :show
+    end
+
+    # Company routes: an active team member is required (D-003).
+    live_session :require_team_member,
+      on_mount: [
+        {SonaWeb.UserAuth, :require_authenticated},
+        {SonaWeb.UserAuth, :require_team_member}
+      ] do
+      live "/", HomeLive, :index
     end
 
     post "/users/update-password", UserSessionController, :update_password

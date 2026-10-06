@@ -281,16 +281,22 @@ defmodule Sona.Accounts do
     :ok
   end
 
+  @doc """
+  Deletes all of the user's tokens and returns them, so the caller can
+  disconnect their live sessions with `SonaWeb.UserAuth.disconnect_sessions/1`.
+  """
+  def delete_all_user_tokens(%User{} = user) do
+    tokens = Repo.all_by(UserToken, user_id: user.id)
+    Repo.delete_all(from(t in UserToken, where: t.id in ^Enum.map(tokens, & &1.id)))
+    tokens
+  end
+
   ## Token helper
 
   defp update_user_and_delete_all_tokens(changeset) do
     Repo.transact(fn ->
       with {:ok, user} <- Repo.update(changeset) do
-        tokens_to_expire = Repo.all_by(UserToken, user_id: user.id)
-
-        Repo.delete_all(from(t in UserToken, where: t.id in ^Enum.map(tokens_to_expire, & &1.id)))
-
-        {:ok, {user, tokens_to_expire}}
+        {:ok, {user, delete_all_user_tokens(user)}}
       end
     end)
   end

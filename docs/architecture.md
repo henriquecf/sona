@@ -2,7 +2,7 @@
 
 A living record of Sona's product-specific design and the decisions behind it. Agents read it before planning a feature and update it in the same commit as any change that makes or changes a decision (see `AGENTS.md` → Git Workflow).
 
-**Status:** designed (D-002 to D-007). Authentication is generated (plan step 2); the domain is not built yet. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
+**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), and companies, sites, team members and the team gate (step 3). The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
 
 ## Product Context
 
@@ -106,7 +106,7 @@ Offboarding and transfers disconnect the person's live sessions (D-003). That wa
 | `posts` | `company_id`, `kind`, `author_id`, `body`, `site_id`, `department`, `recipient_id`, `company_value_id` | **Announcement:** no recipient or value. **Shout-out:** has a recipient and a value, has no site or department (so it reaches the whole company), and the recipient isn't the author. |
 | `acknowledgements` | `post_id`, `team_member_id`, `inserted_at` | Unique `(post_id, team_member_id)`, inserted with `on_conflict: :nothing`. `Feed` checks that the post is an announcement. |
 
-`left_at` records when someone left and is never set in the future, so "active" means `left_at IS NULL` everywhere.
+`left_at` records when someone left. It is set by offboarding at the time they leave, not scheduled ahead, so "active" means `left_at IS NULL` everywhere. Offboarding someone who has already left does nothing.
 
 ## Domain Glossary
 
@@ -182,6 +182,7 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
     - **In the web layer:** the caller passes those tokens to `SonaWeb.UserAuth.disconnect_sessions/1`.
     - **Result:** access ends at once, including in open tabs, and the domain never calls the web layer.
   - **Transfers:** a change of site or department also disconnects live sessions, so subscriptions are rebuilt.
+  - **Provisioning takes no scope:** creating companies, sites and team members, and offboarding, have no acting team member yet. Seeds and the console call them, and the manager view will add scoped versions.
   - **The offboarding action:** it belongs to the manager view. Until that exists, people leave through seeds or the console, which must call the same pair of functions rather than setting `left_at` by hand.
   - **Generators:**
     - `phx.gen.auth` registers only a `user` scope. We register a `company` scope (`access_path: [:team_member, :company_id]`, `schema_key: :company_id`) for use with `--scope company`. Child tables (`messages`, `read_markers`, `acknowledgements`) are generated without `--scope`, because they reach their company through their parent row.
