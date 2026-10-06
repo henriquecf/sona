@@ -67,6 +67,7 @@ defmodule SonaWeb.Router do
       ] do
       live "/", HomeLive, :index
       live "/chats", ChatsLive, :index
+      live "/chats/:id", ConversationLive, :show
     end
 
     post "/users/update-password", UserSessionController, :update_password

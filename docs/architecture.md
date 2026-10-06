@@ -2,7 +2,7 @@
 
 A living record of Sona's product-specific design and the decisions behind it. Agents read it before planning a feature and update it in the same commit as any change that makes or changes a decision (see `AGENTS.md` → Git Workflow).
 
-**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), and the phone-first app shell (step 5). Chat and the feed are next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
+**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), the phone-first app shell (step 5), and channels with real-time messages (step 6). Direct conversations, unread counts and the feed are next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
 
 ## Product Context
 
@@ -97,6 +97,7 @@ Offboarding and transfers disconnect the person's live sessions (D-003). That wa
 - **Which rows carry `company_id`:** `sites`, `team_members`, `company_values`, `conversations` and `posts`.
 - **Composite foreign keys:** a reference from one of those rows to another company-owned row includes `company_id`. For example, `references(:sites, with: [company_id: :company_id])`, backed by a unique index on `sites (id, company_id)`. This makes the database reject a link across companies.
 - **Child rows:** `messages`, `read_markers` and `acknowledgements` reach their company through their parent row. The scope sets their team member.
+- **Messages:** a body of 1 to 4,000 characters. Times are stored in UTC and shown in the reader's local time by a small client-side hook, so the server needs no time-zone data.
 
 | Table | Columns | Rules the database enforces |
 |-------|---------|-----------------------------|
