@@ -299,12 +299,16 @@ defmodule SonaWeb.UserAuth do
       conn
     else
       conn
-      |> put_flash(:error, "You must log in to access this page.")
+      |> put_login_flash()
       |> maybe_store_return_to()
       |> redirect(to: ~p"/users/log-in")
       |> halt()
     end
   end
+
+  # Opening the app signed out is the normal way in, not an error.
+  defp put_login_flash(%Plug.Conn{path_info: []} = conn), do: conn
+  defp put_login_flash(conn), do: put_flash(conn, :error, "You must log in to access this page.")
 
   defp maybe_store_return_to(%{method: "GET"} = conn) do
     put_session(conn, :user_return_to, current_path(conn))

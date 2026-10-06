@@ -60,6 +60,14 @@ defmodule SonaWeb.AppShellTest do
     assert has_element?(view, ~s|#account-nav a[href="/users/log-in"]|)
   end
 
+  test "log in leads with the magic link, with a password tucked away", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/users/log-in")
+
+    assert has_element?(view, "#login_form_magic")
+    assert has_element?(view, "details#password-login #login_form_password")
+    refute has_element?(view, "#password-login[open]")
+  end
+
   test "chats needs a team", %{conn: conn} do
     assert {:error, {:redirect, %{to: "/no-team"}}} =
              conn |> log_in_user(user_fixture()) |> live(~p"/chats")

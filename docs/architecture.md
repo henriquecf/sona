@@ -2,7 +2,7 @@
 
 A living record of Sona's product-specific design and the decisions behind it. Agents read it before planning a feature and update it in the same commit as any change that makes or changes a decision (see `AGENTS.md` → Git Workflow).
 
-**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), the phone-first app shell (step 5), channels with real-time messages (step 6), direct conversations (step 7a), unread counts (step 7b), announcements with acknowledgements (step 8), and shout-outs for company values (step 9). A browser pass and wrap-up are next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
+**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), the phone-first app shell (step 5), channels with real-time messages (step 6), direct conversations (step 7a), unread counts (step 7b), announcements with acknowledgements (step 8), shout-outs for company values (step 9), and a browser pass (step 10). Wrap-up is next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
 
 ## Product Context
 
@@ -64,6 +64,7 @@ They are designed for phones first (D-007).
 - **The frame:**
   - **Tabbed pages:** a header with the company and site and an account menu (Settings, the dev persona switcher, Log out), and a bottom tab bar.
   - **Pages outside the tabs:** a conversation or settings swaps both for a back bar.
+  - **Toasts:** confirmations dismiss themselves after about six seconds, pausing while hovered or focused. Errors stay until dismissed.
 
 - **Home:**
   - **"Needs your attention":** announcements you haven't acknowledged, at the top. Once acknowledged, an announcement moves into the feed.
@@ -225,7 +226,8 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
 - **Context:** Frontline team members won't remember passwords, and many have only a personal email address. Demos need several people signed in at once.
 - **Decision:**
   - **Sign-in:** magic links only, from `mix phx.gen.auth --live`. In development, emails land in the Swoosh mailbox.
-  - **Generated password settings:** they stay as generated, along with the `bcrypt_elixir` dependency they bring, but aren't part of the product flow.
+  - **Generated password settings:** they stay as generated, along with the `bcrypt_elixir` dependency they bring, but aren't part of the product flow. The login page leads with the magic link, and the password form sits behind "Use a password instead".
+  - **Opening the app signed out:** goes straight to log-in, without an error flash. Other protected pages still explain the redirect.
   - **Self-registration:** stays as generated. Someone who registers without an invitation has no team member and lands on "you're not on a team".
   - **Persona switcher:** at `/dev/personas`. It signs in as any seeded team member.
     - **Never in production:** its routes and its modules (`SonaWeb.PersonaController`, `SonaWeb.PersonaHTML`, `Sona.DevPersonas`) only compile when `dev_routes` is on. That is also enabled in `config/test.exs` so the switcher is tested.

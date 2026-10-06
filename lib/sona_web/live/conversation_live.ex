@@ -57,7 +57,7 @@ defmodule SonaWeb.ConversationLive do
         </ol>
       </div>
 
-      <div class="fixed inset-x-0 bottom-0 z-20 border-t border-base-300 bg-base-100/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <div class="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg border-t border-base-300 bg-base-100/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:border-x">
         <p
           :if={@recipient_left?}
           id="recipient-left"
