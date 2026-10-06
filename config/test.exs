@@ -42,3 +42,6 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Compile the dev-only routes (persona switcher, D-005) so they are tested.
+config :sona, dev_routes: true

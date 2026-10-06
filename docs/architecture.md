@@ -2,7 +2,7 @@
 
 A living record of Sona's product-specific design and the decisions behind it. Agents read it before planning a feature and update it in the same commit as any change that makes or changes a decision (see `AGENTS.md` → Git Workflow).
 
-**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), and companies, sites, team members and the team gate (step 3). The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
+**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), and demo seeds with the persona switcher (step 4). The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
 
 ## Product Context
 
@@ -222,7 +222,7 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
   - **Generated password settings:** they stay as generated, along with the `bcrypt_elixir` dependency they bring, but aren't part of the product flow.
   - **Self-registration:** stays as generated. Someone who registers without an invitation has no team member and lands on "you're not on a team".
   - **Persona switcher:** at `/dev/personas`. It signs in as any seeded team member.
-    - **Never in production:** it sits behind `dev_routes`, which is also enabled in `config/test.exs` so the switcher is tested.
+    - **Never in production:** its routes and its modules (`SonaWeb.PersonaController`, `SonaWeb.PersonaHTML`, `Sona.DevPersonas`) only compile when `dev_routes` is on. That is also enabled in `config/test.exs` so the switcher is tested.
     - **The one unscoped query:** it lists team members across companies without a scope. That deliberate exception lives in `Sona.DevPersonas`, not in a context's public API.
   - **Phone codes:** one-time codes by phone are not built.
 - **Consequences:**

@@ -37,6 +37,14 @@ defmodule SonaWeb.Router do
       live_dashboard "/dashboard", metrics: SonaWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
+
+    # Sign in as any seeded team member, for demos (D-005).
+    scope "/dev", SonaWeb do
+      pipe_through :browser
+
+      get "/personas", PersonaController, :index
+      post "/personas/:id", PersonaController, :create
+    end
   end
 
   ## Authentication routes
