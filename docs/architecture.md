@@ -2,7 +2,7 @@
 
 A living record of Sona's product-specific design and the decisions behind it. Agents read it before planning a feature and update it in the same commit as any change that makes or changes a decision (see `AGENTS.md` → Git Workflow).
 
-**Status:** designed (D-002 to D-007), not built yet. The app is still the `mix phx.new` skeleton. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
+**Status:** designed (D-002 to D-007). Authentication is generated (plan step 2); the domain is not built yet. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
 
 ## Product Context
 
