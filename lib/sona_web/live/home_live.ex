@@ -4,12 +4,11 @@ defmodule SonaWeb.HomeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app flash={@flash} current_scope={@current_scope} active_tab={:home}>
       <section id="home">
         <h1 id="home-greeting" class="text-2xl font-semibold">
           Hi, {@current_scope.team_member.name}
         </h1>
-        <p class="text-base-content/70">{@current_scope.team_member.site.name}</p>
       </section>
     </Layouts.app>
     """
@@ -17,6 +16,6 @@ defmodule SonaWeb.HomeLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, socket}
+    {:ok, assign(socket, :page_title, "Home")}
   end
 end

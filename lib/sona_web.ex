@@ -86,6 +86,7 @@ defmodule SonaWeb do
       import Phoenix.HTML
       # Core UI components
       import SonaWeb.CoreComponents
+      import SonaWeb.TeamComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

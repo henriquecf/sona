@@ -66,6 +66,7 @@ defmodule SonaWeb.Router do
         {SonaWeb.UserAuth, :require_team_member}
       ] do
       live "/", HomeLive, :index
+      live "/chats", ChatsLive, :index
     end
 
     post "/users/update-password", UserSessionController, :update_password

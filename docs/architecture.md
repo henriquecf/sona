@@ -2,7 +2,7 @@
 
 A living record of Sona's product-specific design and the decisions behind it. Agents read it before planning a feature and update it in the same commit as any change that makes or changes a decision (see `AGENTS.md` → Git Workflow).
 
-**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), and demo seeds with the persona switcher (step 4). The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
+**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), and the phone-first app shell (step 5). Chat and the feed are next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
 
 ## Product Context
 
@@ -59,7 +59,11 @@ One Phoenix application (D-001). The domain lives in contexts under `lib/sona/` 
 
 ### Screens
 
-They are designed for phones first and use a bottom tab bar (D-007).
+They are designed for phones first (D-007).
+
+- **The frame:**
+  - **Tabbed pages:** a header with the company and site and an account menu (Settings, the dev persona switcher, Log out), and a bottom tab bar.
+  - **Pages outside the tabs:** a conversation or settings swaps both for a back bar.
 
 - **Home:**
   - **"Needs your attention":** announcements you haven't acknowledged, at the top. Once acknowledged, an announcement moves into the feed.
