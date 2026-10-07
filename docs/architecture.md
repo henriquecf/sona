@@ -2,7 +2,7 @@
 
 A living record of Sona's product-specific design and the decisions behind it. Agents read it before planning a feature and update it in the same commit as any change that makes or changes a decision (see `AGENTS.md` → Git Workflow).
 
-**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), the phone-first app shell (step 5), channels with real-time messages (step 6), direct conversations (step 7a), unread counts (step 7b), announcements with acknowledgements (step 8), shout-outs for company values (step 9), and a browser pass (step 10). Wrap-up is next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
+**Status:** the POC is built (plan steps 1–11). It has chat (channels, direct conversations, unread counts) and a feed (acknowledged announcements, shout-outs), for frontline team members on phones. The next step is shift-awareness (see Open Questions). The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
 
 ## Product Context
 
