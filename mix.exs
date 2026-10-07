@@ -96,7 +96,13 @@ defmodule Sona.MixProject do
         "esbuild sona --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      # --force: format's mtime cache skips files moved in with an old mtime.
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format --force",
+        "test"
+      ]
     ]
   end
 end

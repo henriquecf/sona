@@ -154,7 +154,7 @@ defmodule SonaWeb.Layouts do
     assigns = assign(assigns, :dev_routes, @dev_routes)
 
     ~H"""
-    <details id="account-menu" class="group relative">
+    <details id="account-menu" phx-hook=".AccountMenu" class="group relative">
       <summary
         aria-label="Account"
         class="inline-flex size-11 cursor-pointer list-none items-center justify-center rounded-full transition active:scale-95 [&::-webkit-details-marker]:hidden"
@@ -197,6 +197,31 @@ defmodule SonaWeb.Layouts do
         </.link>
       </div>
     </details>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".AccountMenu">
+      // Close like a menu: on a tap elsewhere, or on Escape. The open state is
+      // the browser's, so re-renders must leave the attribute alone.
+      // pointerdown, unlike click, also fires for taps on non-interactive
+      // elements in iOS Safari.
+      export default {
+        mounted() {
+          this.js().ignoreAttributes(this.el, "open")
+          this.onPointer = (e) => { if (this.el.open && !this.el.contains(e.target)) this.el.open = false }
+          this.onKey = (e) => {
+            if (e.key === "Escape" && this.el.open) {
+              const hadFocus = this.el.contains(document.activeElement)
+              this.el.open = false
+              if (hadFocus) this.el.querySelector("summary").focus()
+            }
+          }
+          document.addEventListener("pointerdown", this.onPointer)
+          document.addEventListener("keydown", this.onKey)
+        },
+        destroyed() {
+          document.removeEventListener("pointerdown", this.onPointer)
+          document.removeEventListener("keydown", this.onKey)
+        }
+      }
+    </script>
     """
   end
 
@@ -207,9 +232,9 @@ defmodule SonaWeb.Layouts do
     <nav
       id="tab-bar"
       aria-label="Main"
-      class="fixed inset-x-0 bottom-0 z-20 border-t border-base-300 bg-base-100/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+      class="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg border-t border-base-300 bg-base-100/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:border-x"
     >
-      <div class="mx-auto grid max-w-lg grid-cols-2">
+      <div class="grid grid-cols-2">
         <.tab
           id="tab-home"
           navigate={~p"/"}

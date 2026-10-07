@@ -27,7 +27,7 @@ mix test [path[:line]]       # the test alias creates and migrates the test DB i
 mix test --failed            # re-run only the last failures
 mix ecto.gen.migration name  # always generate migrations, never hand-write them
 mix ecto.migrate | mix ecto.reset
-mix precommit                # compile --warnings-as-errors, deps.unlock --unused, format, test
+mix precommit                # compile --warnings-as-errors, deps.unlock --unused, format --force, test
 ```
 
 `mix precommit` must pass before every commit. Local Postgres uses the generator defaults (`postgres`/`postgres` on localhost, see `config/dev.exs` and `config/test.exs`).

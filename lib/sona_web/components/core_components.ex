@@ -62,27 +62,62 @@ defmodule SonaWeb.CoreComponents do
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
-      role="alert"
-      class="toast toast-top toast-end z-50"
+      phx-hook=".AutoDismiss"
+      data-auto-dismiss={@kind == :info}
+      role={if(@kind == :error, do: "alert", else: "status")}
+      class="fixed inset-x-0 top-3 z-50 mx-auto flex w-full max-w-lg justify-center px-3"
       {@rest}
     >
       <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
+        "flex w-full items-start gap-3 rounded-box border bg-base-100 px-4 py-3 text-sm text-base-content shadow-lg",
+        @kind == :info && "border-secondary/50",
+        @kind == :error && "border-error/60"
       ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
-        <div>
+        <.icon
+          :if={@kind == :info}
+          name="hero-check-circle"
+          class="size-5 shrink-0 text-secondary"
+        />
+        <.icon
+          :if={@kind == :error}
+          name="hero-exclamation-circle"
+          class="size-5 shrink-0 text-error"
+        />
+        <div class="min-w-0 flex-1">
           <p :if={@title} class="font-semibold">{@title}</p>
           <p>{msg}</p>
         </div>
-        <div class="flex-1" />
-        <button type="button" class="group self-start cursor-pointer" aria-label={gettext("close")}>
-          <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
+        <button type="button" class="group -m-1 cursor-pointer p-1" aria-label={gettext("close")}>
+          <.icon name="hero-x-mark" class="size-5 opacity-50 group-hover:opacity-80" />
         </button>
       </div>
     </div>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".AutoDismiss">
+      // Confirmations get out of the way on their own; errors wait to be read.
+      // The hook name must be a literal for LiveView to resolve it, so the kind
+      // is passed as data-auto-dismiss. The timer pauses while the toast is
+      // hovered or focused, and restarts when a new message replaces it. It runs
+      // the toast's own close command rather than a click, which would bubble.
+      export default {
+        mounted() {
+          this.pause = () => clearTimeout(this.timer)
+          this.resume = () => this.start()
+          this.el.addEventListener("pointerenter", this.pause)
+          this.el.addEventListener("focusin", this.pause)
+          this.el.addEventListener("pointerleave", this.resume)
+          this.el.addEventListener("focusout", this.resume)
+          this.start()
+        },
+        updated() { this.start() },
+        destroyed() { clearTimeout(this.timer) },
+        start() {
+          clearTimeout(this.timer)
+          if (this.el.hasAttribute("data-auto-dismiss")) {
+            this.timer = setTimeout(() => this.js().exec(this.el.getAttribute("phx-click")), 6000)
+          }
+        }
+      }
+    </script>
     """
   end
 

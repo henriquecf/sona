@@ -49,6 +49,19 @@ defmodule Sona.CompaniesFixtures do
     team_member
   end
 
+  def company_value_fixture(company, attrs \\ %{}) do
+    {:ok, value} =
+      Companies.create_value(
+        company,
+        Enum.into(attrs, %{
+          name: "Value #{System.unique_integer([:positive])}",
+          description: "What we stand for."
+        })
+      )
+
+    value
+  end
+
   @doc """
   The scope a signed-in team member acts with, as `SonaWeb.UserAuth` builds it.
   """

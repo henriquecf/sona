@@ -393,8 +393,28 @@ defmodule SonaWeb.UserAuthTest do
     end
 
     test "redirects if user is not authenticated", %{conn: conn} do
-      conn = conn |> fetch_flash() |> UserAuth.require_authenticated_user([])
+      conn =
+        %{conn | path_info: ["chats"]}
+        |> fetch_flash()
+        |> UserAuth.require_authenticated_user([])
+
       assert conn.halted
+
+      assert redirected_to(conn) == ~p"/users/log-in"
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+               "You must log in to access this page."
+    end
+
+    test "sends someone opening the app to log in without an error" do
+      conn = get(build_conn(), ~p"/")
+
+      assert redirected_to(conn) == ~p"/users/log-in"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) == nil
+    end
+
+    test "explains the redirect from any other page" do
+      conn = get(build_conn(), ~p"/chats")
 
       assert redirected_to(conn) == ~p"/users/log-in"
 

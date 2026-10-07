@@ -41,6 +41,26 @@ defmodule SonaWeb.TeamComponents do
     """
   end
 
+  @doc """
+  A team member's first name, for greetings and message previews.
+  """
+  def first_name(name), do: name |> String.split() |> hd()
+
+  @doc """
+  Describes who a channel or post is for (D-004), from its `site` (loaded,
+  or `nil` for every site) and `department` (`nil` for every department).
+  """
+  def audience_label(%{site: nil, department: nil}), do: "Everyone"
+  def audience_label(%{site: site, department: nil}), do: "Everyone at #{site.name}"
+
+  def audience_label(%{site: nil, department: department}),
+    do: "#{department_name(department)}, every site"
+
+  def audience_label(%{site: site, department: department}),
+    do: "#{department_name(department)} at #{site.name}"
+
+  defp department_name(department), do: Phoenix.Naming.humanize(department)
+
   defp initials(name) do
     name
     |> String.split()

@@ -2,7 +2,7 @@
 
 A living record of Sona's product-specific design and the decisions behind it. Agents read it before planning a feature and update it in the same commit as any change that makes or changes a decision (see `AGENTS.md` → Git Workflow).
 
-**Status:** designed (D-002 to D-007). Built so far: authentication (plan step 2), companies, sites, team members and the team gate (step 3), demo seeds with the persona switcher (step 4), and the phone-first app shell (step 5). Chat and the feed are next. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
+**Status:** the POC is built (plan steps 1–11). It has chat (channels, direct conversations, unread counts) and a feed (acknowledged announcements, shout-outs), for frontline team members on phones. The next step is shift-awareness (see Open Questions). The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md).
 
 ## Product Context
 
@@ -46,14 +46,14 @@ One Phoenix application (D-001). The domain lives in contexts under `lib/sona/` 
 - **Filtering:**
   - Every query filters by the team member's company. That is necessary but not enough.
   - Conversations and posts are also filtered by audience, or by being one of the two people in a direct conversation (D-004).
-  - Posting an announcement needs the `manager` role, which `Feed` checks itself rather than relying on the screen hiding the button.
+  - Posting an announcement needs the `manager` role, which `Feed` checks itself rather than relying on the screen hiding the button. Any team member can give a shout-out.
 - **Client-supplied ids:** every id the client sends is looked up again through the scope, and each one gets a negative test:
 
 | The client sends | It must resolve to |
 |------------------|--------------------|
 | A conversation id (to open it or send to it) | A conversation visible to me |
 | A colleague id (to start a direct conversation) | An active team member of my company who isn't me |
-| A post id (to acknowledge it) | An announcement visible to me |
+| A post id (to acknowledge it) | An announcement from someone else, visible to me |
 | A site id and a department (the audience picker) | A site of my company, and a department from the fixed list |
 | A recipient id and a company value id (a shout-out) | An active team member of my company who isn't me, and a value of my company |
 
@@ -64,12 +64,14 @@ They are designed for phones first (D-007).
 - **The frame:**
   - **Tabbed pages:** a header with the company and site and an account menu (Settings, the dev persona switcher, Log out), and a bottom tab bar.
   - **Pages outside the tabs:** a conversation or settings swaps both for a back bar.
+  - **Toasts:** confirmations dismiss themselves after about six seconds, pausing while hovered or focused. Errors stay until dismissed.
 
 - **Home:**
   - **"Needs your attention":** announcements you haven't acknowledged, at the top. Once acknowledged, an announcement moves into the feed.
   - **The feed:** announcements and shout-outs, newest first, paginated.
 - **Chats:**
   - **The list:** your conversations, with unread counts.
+  - **Reading:** opening a conversation reads it, and so does a message arriving while it's open. The first, static render doesn't count.
   - **A conversation:** its messages in real time, with older history loaded on demand.
   - **New direct conversation:** you can start one with a colleague from here.
 
@@ -77,8 +79,8 @@ They are designed for phones first (D-007).
 
 | Topic | Carries | Subscribers |
 |-------|---------|-------------|
-| `conversation:<id>` | New messages | The open conversation and the chats list, only for conversations fetched through the scope |
-| `team_member:<id>` | A new direct conversation's first message, so the other person's chats list can subscribe to it | That team member's chats list |
+| `conversation:<id>` | New messages | The open conversation (any kind), and the chats list for channels, only for conversations fetched through the scope |
+| `team_member:<id>` | Every direct message this person sends or receives, so a conversation that is new to them appears in their chats list, in every tab | That team member's chats lists |
 | `audience:<company_id>:<site_id or all>:<department or all>` | New posts for that audience | Each team member, on the four audience topics that include them |
 
 Offboarding and transfers disconnect the person's live sessions (D-003). That way a stale set of subscriptions can't outlive the change.
@@ -97,18 +99,19 @@ Offboarding and transfers disconnect the person's live sessions (D-003). That wa
 - **Which rows carry `company_id`:** `sites`, `team_members`, `company_values`, `conversations` and `posts`.
 - **Composite foreign keys:** a reference from one of those rows to another company-owned row includes `company_id`. For example, `references(:sites, with: [company_id: :company_id])`, backed by a unique index on `sites (id, company_id)`. This makes the database reject a link across companies.
 - **Child rows:** `messages`, `read_markers` and `acknowledgements` reach their company through their parent row. The scope sets their team member.
+- **Messages:** a body of 1 to 4,000 characters. Times are stored in UTC and shown in the reader's local time by a small client-side hook, so the server needs no time-zone data.
 
 | Table | Columns | Rules the database enforces |
 |-------|---------|-----------------------------|
 | `companies` | `name` | |
 | `sites` | `company_id`, `name` | Unique `(company_id, name)` |
 | `team_members` | `company_id`, `user_id`, `site_id`, `name`, `department`, `role`, `left_at` | At most one active team member per user: unique `user_id` where `left_at IS NULL`. The site is in the same company. |
-| `company_values` | `company_id`, `name`, `description` | Unique `(company_id, name)` |
+| `company_values` | `company_id`, `name`, `description` | Unique `(company_id, name)`. Created by seeds for now, like channels. |
 | `conversations` | `company_id`, `kind`, `name`, `site_id`, `department`, `team_member_a_id`, `team_member_b_id` | **Channel:** has a name and no team members. **Direct:** has no name, site or department, and `team_member_a_id < team_member_b_id`, so never with yourself. Unique `(team_member_a_id, team_member_b_id)` for direct conversations. Unique `(company_id, name)` for channels. |
 | `messages` | `conversation_id`, `author_id`, `body` | Index on `(conversation_id, id)` |
-| `read_markers` | `conversation_id`, `team_member_id`, `last_read_message_id` | Unique `(conversation_id, team_member_id)`, written as an upsert |
-| `posts` | `company_id`, `kind`, `author_id`, `body`, `site_id`, `department`, `recipient_id`, `company_value_id` | **Announcement:** no recipient or value. **Shout-out:** has a recipient and a value, has no site or department (so it reaches the whole company), and the recipient isn't the author. |
-| `acknowledgements` | `post_id`, `team_member_id`, `inserted_at` | Unique `(post_id, team_member_id)`, inserted with `on_conflict: :nothing`. `Feed` checks that the post is an announcement. |
+| `read_markers` | `conversation_id`, `team_member_id`, `last_read_message_id` | Unique `(team_member_id, conversation_id)`, written as an upsert that only moves forward (`GREATEST`), so a late or repeated read can't make messages unread again |
+| `posts` | `company_id`, `kind`, `author_id`, `title`, `body`, `site_id`, `department`, `recipient_id`, `company_value_id` | **All:** a body of 1 to 4,000 characters. **Announcement:** a title of 1 to 120 characters, and no recipient or value. **Shout-out:** has a recipient and a value, has no title, site or department (so it reaches the whole company), and the recipient isn't the author. |
+| `acknowledgements` | `post_id`, `team_member_id`, `inserted_at` | Unique `(team_member_id, post_id)`, inserted with `on_conflict: :nothing`, so the first time is kept. `Feed` checks that the post is an announcement from someone else in the team member's audience. |
 
 `left_at` records when someone left. It is set by offboarding at the time they leave, not scheduled ahead, so "active" means `left_at IS NULL` everywhere. Offboarding someone who has already left does nothing.
 
@@ -185,7 +188,7 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
     - **In the context:** a function sets `left_at`, deletes the user's session tokens, and returns them.
     - **In the web layer:** the caller passes those tokens to `SonaWeb.UserAuth.disconnect_sessions/1`.
     - **Result:** access ends at once, including in open tabs, and the domain never calls the web layer.
-  - **Transfers:** a change of site or department also disconnects live sessions, so subscriptions are rebuilt.
+  - **Transfers and role changes:** a change of site, department or role also disconnects live sessions, so subscriptions and the role in the scope are rebuilt.
   - **Provisioning takes no scope:** creating companies, sites and team members, and offboarding, have no acting team member yet. Seeds and the console call them, and the manager view will add scoped versions.
   - **The offboarding action:** it belongs to the manager view. Until that exists, people leave through seeds or the console, which must call the same pair of functions rather than setting `left_at` by hand.
   - **Generators:**
@@ -205,7 +208,7 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
   - **Shape:** an audience is one site or all sites, crossed with one department or all departments. It is stored as nullable `site_id` and `department` columns on channels and posts.
   - **Membership is computed:** an audience's members are worked out from active team members at query time and never copied into membership rows.
   - **One rule, one module:** `Sona.Companies.Audience` owns every encoding of the rule: the query filter, the four topics a team member subscribes to, and the topic a record broadcasts on. One test runs all four audience shapes through each.
-  - **Authors:** they always see their own posts, even outside the audience, and never need to acknowledge their own announcements. The author's view inserts its own post when it is created, because the author may not be subscribed to the post's audience topic.
+  - **Authors:** they always see their own posts, even outside the audience, and never need to acknowledge their own announcements. The author may not be subscribed to the post's audience topic, so after posting they return to Home, which reloads it.
   - **New starters:** when there is no read marker, messages and announcements from before the team member joined don't count as unread or as needing attention.
   - **Channels:** in the POC they are created by seeds. Each has a name, and several channels may share an audience.
   - **Direct conversations:** they store their pair (see Data Model).
@@ -223,7 +226,8 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
 - **Context:** Frontline team members won't remember passwords, and many have only a personal email address. Demos need several people signed in at once.
 - **Decision:**
   - **Sign-in:** magic links only, from `mix phx.gen.auth --live`. In development, emails land in the Swoosh mailbox.
-  - **Generated password settings:** they stay as generated, along with the `bcrypt_elixir` dependency they bring, but aren't part of the product flow.
+  - **Generated password settings:** they stay as generated, along with the `bcrypt_elixir` dependency they bring, but aren't part of the product flow. The login page leads with the magic link, and the password form sits behind "Use a password instead".
+  - **Opening the app signed out:** goes straight to log-in, without an error flash. Other protected pages still explain the redirect.
   - **Self-registration:** stays as generated. Someone who registers without an invitation has no team member and lands on "you're not on a team".
   - **Persona switcher:** at `/dev/personas`. It signs in as any seeded team member.
     - **Never in production:** its routes and its modules (`SonaWeb.PersonaController`, `SonaWeb.PersonaHTML`, `Sona.DevPersonas`) only compile when `dev_routes` is on. That is also enabled in `config/test.exs` so the switcher is tested.
@@ -231,7 +235,7 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
   - **Phone codes:** one-time codes by phone are not built.
 - **Consequences:**
   - **Two paths:** the persona switcher is the demo path, and magic links are the real path.
-  - **Several personas at once:** each needs its own browser profile or private window, because one cookie holds one session.
+  - **Several personas at once:** each needs its own cookies: a separate browser profile, or one normal and one private window. Private windows in Chrome and Firefox share one cookie jar.
 
 ### D-006: Real-time topics are authorized by construction (2026-10-06)
 
@@ -245,9 +249,19 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
   - **Broadcasts:** a post goes to the single topic of its audience.
   - **No filtering on receipt:** nothing is filtered in `handle_info`.
   - **Changes that move people:** offboarding and transfers disconnect live sessions (D-003), so subscriptions can't go stale.
+  - **Display order is by id, not arrival:**
+    - **Why:** PubSub keeps one sender's broadcasts in order, but not broadcasts from different senders. A sender also shows their own message before its broadcast arrives.
+    - **How:** messages, feed posts and pending announcements are displayed by id through CSS `order`.
+    - **Trade-off:** screen readers follow DOM order, so after a rare race, or an acknowledgement, the reading order can differ from the visual order until the next load.
 - **Consequences:**
   - **No permission checks in `handle_info`.**
-  - **Chats list subscriptions:** one per conversation, which is fine for the handful each team member has.
+  - **Chats list subscriptions:** one per channel plus the team member's own topic, so each message reaches a list once.
+  - **Fan-out cost:**
+    - **Chats lists:** each open list reloads (three queries) on every message in any of its conversations, so a channel message costs one reload per member viewing their list.
+    - **Open conversations:** each one marks every arriving message read (a lookup and an upsert).
+    - **Verdict:** fine for a POC. At scale, the list would update the one conversation in place, and reads would be batched.
+  - **Needs your attention:** capped at 50 pending announcements. Any beyond that show up as earlier ones are acknowledged. Finding them scans the company's posts, since `inserted_at` isn't indexed. Fine at POC volumes.
+  - **Unread counts:** past a read marker, a count is an index range scan. A channel someone has never opened has no marker, so its count scans everything since they joined. An index on `messages (conversation_id, inserted_at)` would fix that when channels get long.
   - **Presence:** "who's online" is not built yet.
 
 ### D-007: Phone-first LiveView, no native app (2026-10-06)
@@ -274,4 +288,8 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
 - **Phone sign-in:** one-time codes by SMS for team members without an email address.
 - **Departments per company:** the fixed list won't fit every business (spa, events, security). Move it to a table when a customer needs their own.
 - **More than one company or site:** people who work for two companies, and team members who cover several sites.
+- **Unread counts:**
+  - **Other tabs:** reading in one tab doesn't clear the badge in a chats list open in another. Likewise, tapping "Got it" doesn't update the person's other open Home tabs until they reload.
+  - **No cap:** counts aren't capped ("99+").
+  - **Transfers:** once they exist, a transfer would need a new baseline, or channels at the new site show history since the person joined the company as unread.
 - **Translation and catch-up summaries:** for multilingual crews and people coming back from days off, using an LLM API called through `Req`.
