@@ -30,9 +30,12 @@ defmodule SonaWeb.ConversationLive do
           <li id="messages-empty" class="hidden py-12 text-center text-base-content/70 only:block">
             No messages yet. Say hello!
           </li>
+          <%!-- Ordered by id, not by arrival: near-simultaneous messages can
+               be broadcast in either order. --%>
           <li
             :for={{id, message} <- @streams.messages}
             id={id}
+            style={"order: #{message.id}"}
             data-mine={message.author_id == @current_scope.team_member.id}
             class="group flex items-end gap-2 data-mine:flex-row-reverse"
           >
@@ -49,7 +52,7 @@ defmodule SonaWeb.ConversationLive do
                 <.local_time
                   id={"#{id}-time"}
                   at={message.inserted_at}
-                  class="mt-0.5 block text-right text-[11px] opacity-70"
+                  class="mt-0.5 block text-right text-[11px] opacity-85"
                 />
               </div>
             </div>
@@ -98,8 +101,18 @@ defmodule SonaWeb.ConversationLive do
         // The page scrolls, not the list. Start at the latest message, follow new
         // ones while the reader is near the bottom, and keep the reader's place
         // when older messages are added above.
+        //
+        // Live navigation scrolls the window to the top in an animation frame it
+        // queues before page-loading-stop, so scroll again in the frame after.
+        // That also wins over back/forward scroll restoration, on purpose: a
+        // remounted conversation only has its latest page loaded anyway.
         export default {
-          mounted() { this.scrollToLatest() },
+          mounted() {
+            this.scrollToLatest()
+            this.onLoaded = () => requestAnimationFrame(() => this.scrollToLatest())
+            window.addEventListener("phx:page-loading-stop", this.onLoaded, {once: true})
+          },
+          destroyed() { window.removeEventListener("phx:page-loading-stop", this.onLoaded) },
           beforeUpdate() {
             const page = document.documentElement
             this.fromBottom = page.scrollHeight - window.scrollY - window.innerHeight

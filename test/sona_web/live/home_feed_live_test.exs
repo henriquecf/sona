@@ -31,6 +31,8 @@ defmodule SonaWeb.HomeFeedLiveTest do
 
     refute has_element?(view, "#attention-#{post.id}")
     assert has_element?(view, "#feed-#{post.id} [data-role=acknowledged]")
+    # It takes its place by id, newest first, rather than jumping to the top.
+    assert has_element?(view, ~s|#feed-#{post.id}[style="order: -#{post.id}"]|)
   end
 
   @tag :capture_log

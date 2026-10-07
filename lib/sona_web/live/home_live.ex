@@ -40,8 +40,8 @@ defmodule SonaWeb.HomeLive do
           >
             <.icon name="hero-bell-alert" class="size-5" /> Needs your attention
           </h2>
-          <ol id="attention" phx-update="stream" class="space-y-3">
-            <li :for={{id, post} <- @streams.attention} id={id}>
+          <ol id="attention" phx-update="stream" class="flex flex-col gap-3">
+            <li :for={{id, post} <- @streams.attention} id={id} style={"order: -#{post.id}"}>
               <.post_card post={post} id={id} highlighted>
                 <:action>
                   <button
@@ -66,14 +66,21 @@ defmodule SonaWeb.HomeLive do
           >
             Latest
           </h2>
-          <ol id="feed" phx-update="stream" class="space-y-3">
+          <%!-- Ordered by id, newest first, whatever the insert position:
+               an acknowledged announcement takes its place by date. --%>
+          <ol id="feed" phx-update="stream" class="flex flex-col gap-3">
             <li
               id="feed-empty"
               class="hidden rounded-box border border-dashed border-base-300 px-4 py-10 text-center text-base-content/70 only:block"
             >
               News from across the company will appear here.
             </li>
-            <li :for={{id, post} <- @streams.feed} id={id} data-kind={post.kind}>
+            <li
+              :for={{id, post} <- @streams.feed}
+              id={id}
+              style={"order: -#{post.id}"}
+              data-kind={post.kind}
+            >
               <.post_card post={post} id={id}>
                 <:action :if={post.acknowledged_at}>
                   <p
@@ -150,7 +157,7 @@ defmodule SonaWeb.HomeLive do
         </div>
       </header>
       <div class="space-y-1">
-        <h3 class="text-lg font-semibold leading-snug">{@post.title}</h3>
+        <h3 class="break-words text-lg font-semibold leading-snug">{@post.title}</h3>
         <p class="whitespace-pre-wrap break-words text-base-content/90">{@post.body}</p>
       </div>
       {render_slot(@action)}
@@ -186,7 +193,8 @@ defmodule SonaWeb.HomeLive do
     {:noreply,
      socket
      |> stream_delete(:attention, post)
-     # At the top, out of id order until the next load: it was just read.
+     # Shown in id order (CSS order). Inserting at 0 keeps the DOM order, which
+     # screen readers follow, close: acknowledged posts are usually recent.
      |> stream_insert(:feed, post, at: 0)}
   end
 

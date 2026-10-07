@@ -235,7 +235,7 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
   - **Phone codes:** one-time codes by phone are not built.
 - **Consequences:**
   - **Two paths:** the persona switcher is the demo path, and magic links are the real path.
-  - **Several personas at once:** each needs its own browser profile or private window, because one cookie holds one session.
+  - **Several personas at once:** each needs its own cookies: a separate browser profile, or one normal and one private window. Private windows in Chrome and Firefox share one cookie jar.
 
 ### D-006: Real-time topics are authorized by construction (2026-10-06)
 
@@ -249,6 +249,10 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
   - **Broadcasts:** a post goes to the single topic of its audience.
   - **No filtering on receipt:** nothing is filtered in `handle_info`.
   - **Changes that move people:** offboarding and transfers disconnect live sessions (D-003), so subscriptions can't go stale.
+  - **Display order is by id, not arrival:**
+    - **Why:** PubSub keeps one sender's broadcasts in order, but not broadcasts from different senders. A sender also shows their own message before its broadcast arrives.
+    - **How:** messages, feed posts and pending announcements are displayed by id through CSS `order`.
+    - **Trade-off:** screen readers follow DOM order, so after a rare race, or an acknowledgement, the reading order can differ from the visual order until the next load.
 - **Consequences:**
   - **No permission checks in `handle_info`.**
   - **Chats list subscriptions:** one per channel plus the team member's own topic, so each message reaches a list once.
@@ -285,7 +289,7 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
 - **Departments per company:** the fixed list won't fit every business (spa, events, security). Move it to a table when a customer needs their own.
 - **More than one company or site:** people who work for two companies, and team members who cover several sites.
 - **Unread counts:**
-  - **Other tabs:** reading in one tab doesn't clear the badge in a chats list open in another.
+  - **Other tabs:** reading in one tab doesn't clear the badge in a chats list open in another. Likewise, tapping "Got it" doesn't update the person's other open Home tabs until they reload.
   - **No cap:** counts aren't capped ("99+").
   - **Transfers:** once they exist, a transfer would need a new baseline, or channels at the new site show history since the person joined the company as unread.
 - **Translation and catch-up summaries:** for multilingual crews and people coming back from days off, using an LLM API called through `Req`.

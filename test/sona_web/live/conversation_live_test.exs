@@ -69,6 +69,22 @@ defmodule SonaWeb.ConversationLiveTest do
     assert has_element?(theirs, "#messages-#{message.id}", "Busy night, all hands")
   end
 
+  test "orders each message by its id, not its arrival", %{
+    conn: conn,
+    scope: scope,
+    channel: channel
+  } do
+    {:ok, view, _html} = live(conn, ~p"/chats/#{channel}")
+    first = message_fixture(scope, channel, body: "first")
+    second = message_fixture(scope, channel, body: "second")
+
+    # Broadcasts from different senders can land in either order, so each item
+    # carries its id as its CSS order. LiveViewTest can't see visual order; the
+    # browser pass checks it.
+    assert has_element?(view, ~s|#messages-#{first.id}[style="order: #{first.id}"]|)
+    assert has_element?(view, ~s|#messages-#{second.id}[style="order: #{second.id}"]|)
+  end
+
   test "loads older messages on demand, in order", %{conn: conn, scope: scope, channel: channel} do
     [first, second | _] =
       for n <- 1..52, do: message_fixture(scope, channel, body: "Message #{n}")
