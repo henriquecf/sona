@@ -9,6 +9,9 @@ defmodule Sona.Feed do
   sent to them that they haven't acknowledged "needs their attention";
   every other visible post is in their feed. Posts are ordered by id,
   because timestamps only have second precision.
+
+  Managers also see each announcement's stats: who it was sent to, and
+  who has seen and acknowledged it (D-008).
   """
 
   import Ecto.Query, warn: false
@@ -16,7 +19,7 @@ defmodule Sona.Feed do
   alias Sona.Accounts.Scope
   alias Sona.Companies
   alias Sona.Companies.{Audience, TeamMember}
-  alias Sona.Feed.{Delivery, Post}
+  alias Sona.Feed.{AnnouncementStats, Delivery, Post}
   alias Sona.Repo
 
   @posts_per_page 20
@@ -33,7 +36,7 @@ defmodule Sona.Feed do
   Posts an announcement from the scope's team member, who must be a
   manager, sends it to everyone in its audience apart from them (D-008),
   and broadcasts it as `{:post_created, post}` on its audience's topic
-  (D-006).
+  (D-006). Managers' stats pages get its id (see `subscribe_to_stats/1`).
 
   Returns `{:error, :unauthorized}` for anyone who isn't a manager.
   """
@@ -47,6 +50,7 @@ defmodule Sona.Feed do
     with {:ok, post} <- Repo.transact(fn -> insert_and_deliver(changeset) end) do
       post = %{Repo.preload(post, :site) | author: author}
       Phoenix.PubSub.broadcast(Sona.PubSub, Audience.topic(post), {:post_created, post})
+      broadcast_stats_changed(post.company_id, post.id)
       {:ok, post}
     end
   end
@@ -147,33 +151,36 @@ defmodule Sona.Feed do
   defp before(query, id), do: where(query, [p], p.id < ^id)
 
   @doc """
-  The default page size for `list_feed/2`.
+  The default page size for `list_feed/2` and `list_announcement_stats/2`.
   """
   def posts_per_page, do: @posts_per_page
 
   @doc """
   Records that the scope's team member has seen these announcements,
   keeping the first time (D-008). Posts that weren't sent to them are
-  ignored.
+  ignored. Tells managers' stats pages about each one that changed.
   """
   def mark_seen(%Scope{team_member: %TeamMember{}}, []), do: :ok
 
   def mark_seen(%Scope{team_member: %TeamMember{} = team_member}, posts) do
-    Repo.update_all(
-      from(d in Delivery,
-        where: d.team_member_id == ^team_member.id and d.post_id in ^Enum.map(posts, & &1.id),
-        where: is_nil(d.seen_at)
-      ),
-      set: [seen_at: DateTime.utc_now(:second)]
-    )
+    {_count, post_ids} =
+      Repo.update_all(
+        from(d in Delivery,
+          where: d.team_member_id == ^team_member.id and d.post_id in ^Enum.map(posts, & &1.id),
+          where: is_nil(d.seen_at),
+          select: d.post_id
+        ),
+        set: [seen_at: DateTime.utc_now(:second)]
+      )
 
-    :ok
+    Enum.each(post_ids, &broadcast_stats_changed(team_member.company_id, &1))
   end
 
   @doc """
   Records that the scope's team member has read an announcement, which
   also counts as seeing it, keeping the first times if they already had.
-  Returns the post with its `acknowledged_at`.
+  Returns the post with its `acknowledged_at`. Tells managers' stats pages
+  the first time.
 
   The id is looked up through the scope: raises `Ecto.NoResultsError` for
   anything but an announcement sent to them.
@@ -186,13 +193,16 @@ defmodule Sona.Feed do
 
     now = DateTime.utc_now(:second)
 
-    Repo.update_all(
-      from(d in Delivery,
-        where: d.id == ^delivery.id and is_nil(d.acknowledged_at),
-        update: [set: [acknowledged_at: ^now, seen_at: coalesce(d.seen_at, ^now)]]
-      ),
-      []
-    )
+    {acknowledged, _} =
+      Repo.update_all(
+        from(d in Delivery,
+          where: d.id == ^delivery.id and is_nil(d.acknowledged_at),
+          update: [set: [acknowledged_at: ^now, seen_at: coalesce(d.seen_at, ^now)]]
+        ),
+        []
+      )
+
+    if acknowledged == 1, do: broadcast_stats_changed(team_member.company_id, delivery.post_id)
 
     {:ok, Repo.one!(from [p] in visible_posts(team_member), where: p.id == ^delivery.post_id)}
   end
@@ -203,6 +213,115 @@ defmodule Sona.Feed do
   """
   def subscribe(%Scope{team_member: %TeamMember{} = team_member}) do
     Enum.each(Audience.topics(team_member), &Phoenix.PubSub.subscribe(Sona.PubSub, &1))
+  end
+
+  @doc """
+  Returns a page of the company's announcements with their stats, newest
+  first, whatever their audience (D-008). For managers only.
+
+  ## Options
+
+    * `:before` - only announcements with an id lower than this.
+    * `:limit` - the page size. Defaults to #{@posts_per_page}.
+  """
+  def list_announcement_stats(
+        %Scope{team_member: %TeamMember{role: :manager} = manager},
+        opts \\ []
+      ) do
+    from(p in announcements(manager),
+      order_by: [desc: p.id],
+      limit: ^Keyword.get(opts, :limit, @posts_per_page)
+    )
+    |> before(opts[:before])
+    |> Repo.all()
+    |> then(&with_stats(manager, &1))
+  end
+
+  @doc """
+  Gets one of the company's announcements with its stats, whatever its
+  audience. For managers only.
+
+  The id is looked up through the scope: raises `Ecto.NoResultsError` for
+  anything but an announcement of the manager's company.
+  """
+  def get_announcement_stats!(%Scope{team_member: %TeamMember{role: :manager} = manager}, id) do
+    [stats] = with_stats(manager, [Repo.get!(announcements(manager), id)])
+    stats
+  end
+
+  @doc """
+  Returns everyone an announcement of the manager's company was sent to,
+  as deliveries with their team member and site, by name. Group them with
+  `Sona.Feed.Delivery.status/1`. For managers only.
+  """
+  def list_deliveries(
+        %Scope{team_member: %TeamMember{role: :manager} = manager},
+        %Post{id: post_id}
+      ) do
+    Repo.all(
+      from d in Delivery,
+        join: tm in assoc(d, :team_member),
+        join: s in assoc(tm, :site),
+        where: d.company_id == ^manager.company_id and d.post_id == ^post_id,
+        order_by: [tm.name, tm.id],
+        preload: [team_member: {tm, site: s}]
+    )
+  end
+
+  @doc """
+  Subscribes a manager to `{:announcement_stats_changed, post_id}`, sent
+  whenever one of their company's announcements is posted, seen or
+  acknowledged (D-008).
+  """
+  def subscribe_to_stats(%Scope{team_member: %TeamMember{role: :manager} = manager}) do
+    Phoenix.PubSub.subscribe(Sona.PubSub, stats_topic(manager.company_id))
+  end
+
+  defp broadcast_stats_changed(company_id, post_id) do
+    Phoenix.PubSub.broadcast(
+      Sona.PubSub,
+      stats_topic(company_id),
+      {:announcement_stats_changed, post_id}
+    )
+  end
+
+  defp stats_topic(company_id), do: "announcement_stats:#{company_id}"
+
+  defp announcements(%TeamMember{company_id: company_id}) do
+    from p in Post,
+      join: author in assoc(p, :author),
+      left_join: s in assoc(p, :site),
+      where: p.company_id == ^company_id and p.kind == :announcement,
+      preload: [author: author, site: s]
+  end
+
+  # The counts, as `AnnouncementStats` defines them, for all the posts in
+  # one grouped query. An announcement that reached nobody has no row.
+  defp with_stats(%TeamMember{company_id: company_id}, posts) do
+    counts =
+      Repo.all(
+        from d in Delivery,
+          join: tm in assoc(d, :team_member),
+          where: d.company_id == ^company_id and d.post_id in ^Enum.map(posts, & &1.id),
+          group_by: d.post_id,
+          select:
+            {d.post_id,
+             %{
+               sent: count(d.id),
+               seen:
+                 filter(
+                   count(d.id),
+                   not is_nil(d.seen_at) and (is_nil(tm.left_at) or not is_nil(d.acknowledged_at))
+                 ),
+               acknowledged: count(d.acknowledged_at),
+               left: filter(count(d.id), not is_nil(tm.left_at) and is_nil(d.acknowledged_at))
+             }}
+      )
+      |> Map.new()
+
+    for post <- posts do
+      struct!(AnnouncementStats, Map.put(Map.get(counts, post.id, %{}), :post, post))
+    end
   end
 
   # Posts for the team member's audience, plus their own, plus the

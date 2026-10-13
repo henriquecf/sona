@@ -23,19 +23,24 @@
      - The static render doesn't set `seen_at`.
      - The connected mount does, and so does an arriving announcement.
      - A remount doesn't move it.
-4. [ ] **Stats pages.**
-   - **`/announcements/stats`:** every company announcement, with its sent, seen, acknowledged and left counts in one grouped query, paginated.
-   - **`/announcements/:id/stats`:** who is in each group.
-   - **Access:** manager-only, checked by `Feed`, with a Stats link on Home.
-   - **Live updates** over `announcement_stats:<company_id>`:
-     - **What is broadcast:** a post, and any seen or acknowledgement update that changed rows.
-     - **The list:** re-reads the rows it has loaded and adds new announcements at the top.
-     - **The detail page:** ignores other ids.
-   - **Seeds:** someone who has seen but not acknowledged, and a leaver, so the demo shows all four groups.
-   - **Tests:**
-     - **Negatives:** staff are refused; another company's announcement and a shout-out id aren't found; a staff scope can't subscribe; and another company's topic receives nothing.
-     - **Positive:** a manager outside the audience sees the stats.
-     - **Realtime:** `Feed` broadcasts on post, seen and acknowledge (`assert_receive`). In two connected views, staff tapping "Got it" updates the manager's stats page.
+4. **Stats**, in two commits.
+   - [x] **4a. In `Feed`.**
+     - **Reads, manager-only by function head:** `list_announcement_stats/2` (the counts in one grouped query, paginated), `get_announcement_stats!/2` and `list_deliveries/2`. `Delivery.status/1` puts each person in one group.
+     - **Broadcasts** over `announcement_stats:<company_id>`: a post, and any seen or acknowledgement update that changed rows. `subscribe_to_stats/1` is manager-only.
+     - **Tests:**
+       - **Negatives:** staff are refused; another company's announcement and a shout-out id aren't found; a staff scope can't subscribe; and another company's events never arrive.
+       - **Positive:** a manager outside the audience sees the stats.
+       - **Counts:** one person in each state, and the counts agree with the groups.
+       - **Realtime:** a broadcast on post, seen and acknowledge (`assert_receive`), and none on a repeat.
+   - [ ] **4b. The pages.**
+     - **`/announcements/stats`:** every company announcement with its counts, paginated.
+     - **`/announcements/:id/stats`:** who is in each group.
+     - **Access:** the pages send staff back to Home, and managers get a Stats link there.
+     - **Live updates:**
+       - **The list:** re-reads the rows it has loaded and adds new announcements at the top.
+       - **The detail page:** ignores other ids.
+     - **Seeds:** someone who has seen but not acknowledged, and a leaver, so the demo shows all four groups.
+     - **Tests:** staff are sent back, and another company's id isn't found. In two connected views, staff tapping "Got it" updates the manager's pages.
 5. [ ] **Browser pass and wrap-up.**
    - A phone viewport (390×844) with a manager and two staff in separate contexts.
    - The README (it still lists "who hasn't acknowledged" as future work) and the session log.

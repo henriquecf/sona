@@ -334,6 +334,8 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
   - A Remind button, once push notifications exist.
   - Stats split by site, so each site's managers can follow their own team.
   - Paginated who-lists for company-wide announcements.
+  - Someone leaving moves them into Left, but open stats pages only show it on reload: `Companies` can't tell `Feed`. Wire it up with the offboarding action in the manager view.
+  - Split announcements out of `Feed` into their own context, before the next announcement feature. Deliveries, seen and stats are announcement-only, and `feed.ex` holds both kinds. The feed would stay as a read model over announcements and shout-outs.
 - **Push notifications:** a native app (React Native) or PWA web push. Without them, Sona can't replace WhatsApp.
 - **Phone sign-in:** one-time codes by SMS for team members without an email address.
 - **Departments per company:** the fixed list won't fit every business (spa, events, security). Move it to a table when a customer needs their own.

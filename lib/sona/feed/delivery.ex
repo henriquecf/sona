@@ -17,4 +17,14 @@ defmodule Sona.Feed.Delivery do
     belongs_to :post, Post
     belongs_to :team_member, TeamMember
   end
+
+  @doc """
+  Where the person it was sent to stands, as the stats group them:
+  `:acknowledged`, `:left` (without acknowledging), `:seen` (but not
+  acknowledged) or `:not_seen`. Needs the team member loaded.
+  """
+  def status(%__MODULE__{acknowledged_at: %DateTime{}}), do: :acknowledged
+  def status(%__MODULE__{team_member: %TeamMember{left_at: %DateTime{}}}), do: :left
+  def status(%__MODULE__{team_member: %TeamMember{}, seen_at: %DateTime{}}), do: :seen
+  def status(%__MODULE__{team_member: %TeamMember{}, seen_at: nil}), do: :not_seen
 end
