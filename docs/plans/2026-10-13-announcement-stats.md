@@ -41,7 +41,7 @@
        - **The detail page:** ignores other ids.
      - **Seeds:** someone who has seen but not acknowledged, and a leaver, so the demo shows all four groups.
      - **Tests:** staff are sent back, and another company's id isn't found. In two connected views, staff tapping "Got it" updates the manager's pages.
-5. [ ] **Browser pass and wrap-up.**
-   - A phone viewport (390×844) with a manager and two staff in separate contexts.
+5. [x] **Browser pass and wrap-up.**
+   - A phone viewport (390×844), desktop and dark mode, with a head-office manager watching while a staff member and a site manager act in separate contexts.
    - The README (it still lists "who hasn't acknowledged" as future work) and the session log.
    - Push, and open the PR.

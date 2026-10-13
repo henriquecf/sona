@@ -26,7 +26,7 @@ defmodule SonaWeb.AnnouncementStatsLive.Index do
         >
           <.link
             navigate={~p"/announcements/#{stats.post.id}/stats"}
-            class="block space-y-3 rounded-box border border-base-300 bg-base-100 p-4 transition hover:border-primary/40 hover:bg-primary/5 active:scale-[0.99]"
+            class="block space-y-3 rounded-box border border-base-300 bg-base-100 p-4 transition hover:border-primary/50 active:scale-[0.99]"
           >
             <div class="space-y-1">
               <h2 class="break-words font-semibold leading-snug">{stats.post.title}</h2>

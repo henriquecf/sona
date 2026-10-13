@@ -2,7 +2,7 @@
 
 A living record of Sona's product-specific design and the decisions behind it. Agents read it before planning a feature and update it in the same commit as any change that makes or changes a decision (see `AGENTS.md` → Git Workflow).
 
-**Status:** the POC is built (plan steps 1–11). It has chat (channels, direct conversations, unread counts) and a feed (acknowledged announcements, shout-outs), for frontline team members on phones. The build sequence is in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md). In progress: announcement stats for managers (D-008, [`docs/plans/2026-10-13-announcement-stats.md`](plans/2026-10-13-announcement-stats.md)). After that, shift-awareness (see Open Questions).
+**Status:** the POC is built (plan steps 1–11). It has chat (channels, direct conversations, unread counts), a feed (acknowledged announcements, shout-outs) and announcement stats for managers, for frontline team members on phones. The build sequences are in [`docs/plans/2026-10-06-poc.md`](plans/2026-10-06-poc.md) and, for the stats (D-008), [`docs/plans/2026-10-13-announcement-stats.md`](plans/2026-10-13-announcement-stats.md). Next: shift-awareness (see Open Questions).
 
 ## Product Context
 
