@@ -5,6 +5,8 @@ defmodule SonaWeb.NewAnnouncementLive do
   alias Sona.Companies.TeamMember
   alias Sona.Feed.Post
 
+  on_mount {SonaWeb.UserAuth, :require_manager}
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -58,19 +60,12 @@ defmodule SonaWeb.NewAnnouncementLive do
   def mount(_params, _session, socket) do
     scope = socket.assigns.current_scope
 
-    if scope.team_member.role == :manager do
-      {:ok,
-       socket
-       |> assign(:page_title, "New announcement")
-       |> assign(:sites, Enum.map(Companies.list_sites(scope), &{&1.name, &1.id}))
-       |> assign(:departments, departments())
-       |> assign(:form, to_form(Feed.change_announcement()))}
-    else
-      {:ok,
-       socket
-       |> put_flash(:error, "Only managers can post announcements.")
-       |> push_navigate(to: ~p"/")}
-    end
+    {:ok,
+     socket
+     |> assign(:page_title, "New announcement")
+     |> assign(:sites, Enum.map(Companies.list_sites(scope), &{&1.name, &1.id}))
+     |> assign(:departments, departments())
+     |> assign(:form, to_form(Feed.change_announcement()))}
   end
 
   @impl true

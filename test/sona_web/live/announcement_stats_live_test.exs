@@ -26,8 +26,9 @@ defmodule SonaWeb.AnnouncementStatsLiveTest do
     test "staff are sent back to Home", %{conn: conn, author: author} do
       post = announcement_fixture(author)
 
-      assert {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/announcements/stats")
-      assert {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/announcements/#{post.id}/stats")
+      for path <- [~p"/announcements/stats", ~p"/announcements/#{post.id}/stats"] do
+        assert {:error, {:live_redirect, %{to: "/", flash: %{"error" => _}}}} = live(conn, path)
+      end
     end
 
     test "managers get a Stats link on Home", %{conn: conn, manager_conn: manager_conn} do

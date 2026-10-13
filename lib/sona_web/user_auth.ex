@@ -260,8 +260,9 @@ defmodule SonaWeb.UserAuth do
       _ ->
         socket =
           socket
-          |> Phoenix.LiveView.put_flash(:error, "Only managers can see that page.")
-          |> Phoenix.LiveView.redirect(to: ~p"/")
+          |> Phoenix.LiveView.put_flash(:error, "That page is for managers.")
+          # Home is in the same live_session, so no full page load.
+          |> Phoenix.LiveView.push_navigate(to: ~p"/")
 
         {:halt, socket}
     end

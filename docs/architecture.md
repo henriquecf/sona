@@ -47,7 +47,8 @@ One Phoenix application (D-001). The domain lives in contexts under `lib/sona/` 
   - Every query filters by the team member's company. That is necessary but not enough.
   - Conversations and posts are also filtered by audience, or by being one of the two people in a direct conversation (D-004). An announcement is also visible to everyone it was sent to (D-008).
   - Posting an announcement needs the `manager` role, which `Feed` checks itself rather than relying on the screen hiding the button. Any team member can give a shout-out.
-  - Announcement stats need the `manager` role too. A manager sees them for every announcement in their company, whatever its audience, including its title and body. That is a deliberate exception to the audience filter (D-008). The stats pages also send staff back to Home, through an `on_mount` hook (`SonaWeb.UserAuth`, `:require_manager`).
+  - Manager-only pages (the announcement form and the stats pages) also send staff back to Home, through one `on_mount` hook (`SonaWeb.UserAuth`, `:require_manager`).
+  - Announcement stats need the `manager` role too. A manager sees them for every announcement in their company, whatever its audience, including its title and body. That is a deliberate exception to the audience filter (D-008).
 - **Client-supplied ids:** every id the client sends is looked up again through the scope, and each one gets a negative test:
 
 | The client sends | It must resolve to |
