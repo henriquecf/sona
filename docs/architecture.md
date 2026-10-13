@@ -47,7 +47,7 @@ One Phoenix application (D-001). The domain lives in contexts under `lib/sona/` 
   - Every query filters by the team member's company. That is necessary but not enough.
   - Conversations and posts are also filtered by audience, or by being one of the two people in a direct conversation (D-004). An announcement is also visible to everyone it was sent to (D-008).
   - Posting an announcement needs the `manager` role, which `Feed` checks itself rather than relying on the screen hiding the button. Any team member can give a shout-out.
-  - Announcement stats need the `manager` role too. A manager sees them for every announcement in their company, whatever its audience, including its title and body. That is a deliberate exception to the audience filter (D-008).
+  - Announcement stats need the `manager` role too. A manager sees them for every announcement in their company, whatever its audience, including its title and body. That is a deliberate exception to the audience filter (D-008). The stats pages also send staff back to Home, through an `on_mount` hook (`SonaWeb.UserAuth`, `:require_manager`).
 - **Client-supplied ids:** every id the client sends is looked up again through the scope, and each one gets a negative test:
 
 | The client sends | It must resolve to |
@@ -79,6 +79,7 @@ They are designed for phones first (D-007).
     - **Acknowledged:** everyone who acknowledged it, including people who have left since.
     - **Left:** people who left without acknowledging it.
   - **One announcement** (`/announcements/:id/stats`): who is in each of four separate groups: not seen yet, seen but not acknowledged, acknowledged (with times), and left. Only the first two are outstanding.
+  - **Labels:** the acknowledged count reads "Got it", the button staff tap, because "Acknowledged" doesn't fit a tile on a phone.
   - **Both update live** as people see and acknowledge.
 - **Chats:**
   - **The list:** your conversations, with unread counts.
@@ -263,7 +264,7 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
     - The four audience topics `Audience` computes from its own team member.
     - A manager's own company's `announcement_stats:<company_id>`, through a `Feed` function that only matches managers (D-008).
   - **Broadcasts:** a post goes to the single topic of its audience. An announcement's stats changes also go to `announcement_stats:<company_id>` (D-008).
-  - **No filtering on receipt:** nothing is filtered in `handle_info`.
+  - **No permission filtering on receipt:** `handle_info` never decides who may see something. A stats page does ignore ids it isn't showing (D-008).
   - **Changes that move people:** offboarding and transfers disconnect live sessions (D-003), so subscriptions can't go stale.
   - **Display order is by id, not arrival:**
     - **Why:** PubSub keeps one sender's broadcasts in order, but not broadcasts from different senders. A sender also shows their own message before its broadcast arrives.
@@ -318,7 +319,7 @@ Newest last. Each entry gives its context, the decision, and the consequences. S
   - **Write cost:** a company-wide announcement writes one row per team member as it is posted. At 10k people that is still one `INSERT … SELECT`. Move it to a job once there is a job runner.
   - **"Seen" means loaded, not read:** a card further down a long "Needs your attention" list still counts.
   - **Monitoring data:** "seen" adds detail to what the customer records about its staff, which matters for its privacy notice under GDPR.
-  - **Fan-out:** each time someone sees or acknowledges an announcement, every open stats page in the company re-reads that announcement's stats. Right after a company-wide post, that is one re-read of the whole who-list per person seeing it, on every open page for it. Fine for a POC. At scale, batch the updates.
+  - **Fan-out:** each time someone sees or acknowledges an announcement, every open stats page showing it re-reads its stats. Right after a company-wide post, that is one re-read of the whole who-list per person seeing it, on every open page for it. Fine for a POC. At scale, batch the updates.
   - **Who-lists load whole:** the page for one announcement lists everyone it was sent to. Paginate each group before company-wide announcements reach thousands.
 
 ## Open Questions

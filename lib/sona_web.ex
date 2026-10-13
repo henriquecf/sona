@@ -85,6 +85,7 @@ defmodule SonaWeb do
       # HTML escaping functionality
       import Phoenix.HTML
       # Core UI components
+      import SonaWeb.AnnouncementComponents
       import SonaWeb.CoreComponents
       import SonaWeb.TeamComponents
       import SonaWeb.TimeComponents

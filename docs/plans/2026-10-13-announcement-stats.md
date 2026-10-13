@@ -32,7 +32,7 @@
        - **Positive:** a manager outside the audience sees the stats.
        - **Counts:** one person in each state, and the counts agree with the groups.
        - **Realtime:** a broadcast on post, seen and acknowledge (`assert_receive`), and none on a repeat.
-   - [ ] **4b. The pages.**
+   - [x] **4b. The pages.**
      - **`/announcements/stats`:** every company announcement with its counts, paginated.
      - **`/announcements/:id/stats`:** who is in each group.
      - **Access:** the pages send staff back to Home, and managers get a Stats link there.

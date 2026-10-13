@@ -29,6 +29,14 @@ defmodule SonaWeb.HomeLive do
             >
               <.icon name="hero-megaphone" class="size-5" /> Announce
             </.link>
+            <.link
+              :if={@current_scope.team_member.role == :manager}
+              id="announcement-stats"
+              navigate={~p"/announcements/stats"}
+              class="inline-flex min-h-11 items-center gap-2 rounded-full border border-base-300 px-4 text-sm font-semibold transition hover:bg-base-200 active:scale-95"
+            >
+              <.icon name="hero-chart-bar" class="size-5" /> Stats
+            </.link>
           </div>
         </div>
 
