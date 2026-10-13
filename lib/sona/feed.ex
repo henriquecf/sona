@@ -152,6 +152,25 @@ defmodule Sona.Feed do
   def posts_per_page, do: @posts_per_page
 
   @doc """
+  Records that the scope's team member has seen these announcements,
+  keeping the first time (D-008). Posts that weren't sent to them are
+  ignored.
+  """
+  def mark_seen(%Scope{team_member: %TeamMember{}}, []), do: :ok
+
+  def mark_seen(%Scope{team_member: %TeamMember{} = team_member}, posts) do
+    Repo.update_all(
+      from(d in Delivery,
+        where: d.team_member_id == ^team_member.id and d.post_id in ^Enum.map(posts, & &1.id),
+        where: is_nil(d.seen_at)
+      ),
+      set: [seen_at: DateTime.utc_now(:second)]
+    )
+
+    :ok
+  end
+
+  @doc """
   Records that the scope's team member has read an announcement, which
   also counts as seeing it, keeping the first times if they already had.
   Returns the post with its `acknowledged_at`.

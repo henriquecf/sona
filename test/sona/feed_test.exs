@@ -232,6 +232,41 @@ defmodule Sona.FeedTest do
     end
   end
 
+  describe "mark_seen/2" do
+    test "records the first time you saw announcements sent to you", %{
+      manager: manager,
+      me: me
+    } do
+      [post, other, unloaded] = for _ <- 1..3, do: announcement_fixture(manager)
+      first = ~U[2026-01-01 00:00:00Z]
+      Repo.update_all(from(d in Delivery, where: d.post_id == ^other.id), set: [seen_at: first])
+
+      :ok = Feed.mark_seen(me, [post, other])
+
+      assert %Delivery{seen_at: %DateTime{}, acknowledged_at: nil} = delivery(me, post)
+      assert %Delivery{seen_at: ^first} = delivery(me, other)
+      assert %Delivery{seen_at: nil} = delivery(me, unloaded)
+    end
+
+    test "only marks your own deliveries", %{
+      manager: manager,
+      me: me,
+      soho: soho,
+      brighton: brighton
+    } do
+      colleague = company_scope_fixture(team_member_fixture(site: soho))
+      far_away = company_scope_fixture(team_member_fixture(site: brighton))
+      post = announcement_fixture(manager)
+      brighton_post = announcement_fixture(manager, site_id: brighton.id)
+
+      :ok = Feed.mark_seen(me, [post, brighton_post])
+
+      assert %Delivery{seen_at: nil} = delivery(colleague, post)
+      assert %Delivery{seen_at: nil} = delivery(far_away, brighton_post)
+      refute Repo.get_by(Delivery, team_member_id: me.team_member.id, post_id: brighton_post.id)
+    end
+  end
+
   describe "the database" do
     test "rejects an announcement without a title", %{manager: manager} do
       changeset =

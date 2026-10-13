@@ -18,7 +18,7 @@
    - **Tests:**
      - Negatives: no delivery means no acknowledging, including for an announcement from before you joined.
      - Database: a cross-company delivery and an acknowledgement without seen are rejected.
-3. [ ] **Seen.** The live Home marks the announcements it loads in "Needs your attention" as seen, at mount and when one arrives.
+3. [x] **Seen.** The live Home marks the announcements it loads in "Needs your attention" as seen, at mount and when one arrives.
    - **Tests:**
      - The static render doesn't set `seen_at`.
      - The connected mount does, and so does an arriving announcement.
