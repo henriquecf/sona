@@ -1,6 +1,7 @@
 defmodule SonaWeb.HomeFeedLiveTest do
   use SonaWeb.ConnCase, async: true
 
+  import Ecto.Query
   import Phoenix.LiveViewTest
   import Sona.CompaniesFixtures
   import Sona.FeedFixtures
@@ -54,7 +55,7 @@ defmodule SonaWeb.HomeFeedLiveTest do
     assert {{%Ecto.NoResultsError{}, _stack}, _call} =
              catch_exit(render_click(view, "acknowledge", %{"id" => "#{post.id}"}))
 
-    assert Sona.Repo.aggregate(Sona.Feed.Acknowledgement, :count) == 0
+    refute Sona.Repo.exists?(from d in Sona.Feed.Delivery, where: not is_nil(d.acknowledged_at))
   end
 
   test "a new announcement for your audience arrives live", %{conn: conn, manager: manager} do

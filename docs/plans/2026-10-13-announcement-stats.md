@@ -9,10 +9,10 @@
 ## Steps
 
 1. [x] **Design.** D-008, the data model, the glossary and this plan.
-2. [ ] **Deliveries replace acknowledgements.**
+2. [x] **Deliveries replace acknowledgements.**
    - **The table:** `deliveries`, with composite company foreign keys (a new unique index on `posts (id, company_id)`), unique `(team_member_id, post_id)`, an index on `post_id`, and the check that acknowledged means seen.
    - **The migration:** explicit `up` and `down` in SQL. `up` backfills deliveries for earlier announcements, carries acknowledgements over and drops their table; `down` restores them. Check that each seeded persona's "Needs your attention" is the same before and after.
-   - **`Audience.members/1`:** a separate leg of the audience cross-check test. `includes/1` stays checked through visibility (the feed), since attention no longer uses it.
+   - **`Audience.members/1`:** a separate leg of the audience cross-check test. `includes/1` is checked directly against posts, since deliveries now also make posts visible.
    - **Posting:** an announcement creates its deliveries in the same transaction, and broadcasts after it commits.
    - **Reading:** "Needs your attention" and acknowledging read from deliveries. An announcement sent to you is always visible to you.
    - **Tests:**

@@ -1,14 +1,14 @@
 defmodule Sona.Feed do
   @moduledoc """
   The feed: announcements from managers to an audience, which each person
-  in it acknowledges, and shout-outs, in which anyone recognises a
+  it was sent to acknowledges, and shout-outs, in which anyone recognises a
   colleague for living a company value, for the whole company to see.
 
   A team member sees the posts whose audience includes them, plus their
-  own (D-004). An announcement from someone else that they haven't
-  acknowledged, posted since they joined, "needs their attention"; every
-  other visible post is in their feed. Posts are ordered by id, because
-  timestamps only have second precision.
+  own (D-004), plus the announcements sent to them (D-008). An announcement
+  sent to them that they haven't acknowledged "needs their attention";
+  every other visible post is in their feed. Posts are ordered by id,
+  because timestamps only have second precision.
   """
 
   import Ecto.Query, warn: false
@@ -16,7 +16,7 @@ defmodule Sona.Feed do
   alias Sona.Accounts.Scope
   alias Sona.Companies
   alias Sona.Companies.{Audience, TeamMember}
-  alias Sona.Feed.{Acknowledgement, Post}
+  alias Sona.Feed.{Delivery, Post}
   alias Sona.Repo
 
   @posts_per_page 20
@@ -31,27 +31,45 @@ defmodule Sona.Feed do
 
   @doc """
   Posts an announcement from the scope's team member, who must be a
-  manager, and broadcasts it as `{:post_created, post}` on its audience's
-  topic (D-006).
+  manager, sends it to everyone in its audience apart from them (D-008),
+  and broadcasts it as `{:post_created, post}` on its audience's topic
+  (D-006).
 
   Returns `{:error, :unauthorized}` for anyone who isn't a manager.
   """
   def create_announcement(%Scope{team_member: %TeamMember{role: :manager} = author}, attrs) do
-    %Post{company_id: author.company_id, author_id: author.id}
-    |> Post.announcement_changeset(attrs)
-    |> Repo.insert()
-    |> case do
-      {:ok, post} ->
-        post = %{Repo.preload(post, :site) | author: author}
-        Phoenix.PubSub.broadcast(Sona.PubSub, Audience.topic(post), {:post_created, post})
-        {:ok, post}
+    changeset =
+      Post.announcement_changeset(
+        %Post{company_id: author.company_id, author_id: author.id},
+        attrs
+      )
 
-      {:error, changeset} ->
-        {:error, changeset}
+    with {:ok, post} <- Repo.transact(fn -> insert_and_deliver(changeset) end) do
+      post = %{Repo.preload(post, :site) | author: author}
+      Phoenix.PubSub.broadcast(Sona.PubSub, Audience.topic(post), {:post_created, post})
+      {:ok, post}
     end
   end
 
   def create_announcement(%Scope{team_member: %TeamMember{}}, _attrs), do: {:error, :unauthorized}
+
+  # One delivery for each active team member in the audience, apart from
+  # the author, in a single INSERT ... SELECT.
+  defp insert_and_deliver(changeset) do
+    with {:ok, post} <- Repo.insert(changeset) do
+      recipients =
+        from tm in Audience.members(post),
+          where: tm.id != ^post.author_id,
+          select: %{
+            company_id: tm.company_id,
+            post_id: type(^post.id, :id),
+            team_member_id: tm.id
+          }
+
+      Repo.insert_all(Delivery, recipients)
+      {:ok, post}
+    end
+  end
 
   def change_shout_out(%Post{} = post \\ %Post{}, attrs \\ %{}) do
     Post.shout_out_changeset(post, attrs)
@@ -97,8 +115,8 @@ defmodule Sona.Feed do
   """
   def list_attention(%Scope{team_member: %TeamMember{} = team_member}) do
     Repo.all(
-      from [p, ack: a] in visible_posts(team_member),
-        where: ^needs_attention(team_member),
+      from [p] in visible_posts(team_member),
+        where: ^needs_attention(),
         order_by: [desc: p.id],
         limit: @attention_limit
     )
@@ -115,8 +133,8 @@ defmodule Sona.Feed do
   """
   def list_feed(%Scope{team_member: %TeamMember{} = team_member}, opts \\ []) do
     query =
-      from [p, ack: a] in visible_posts(team_member),
-        where: ^dynamic([p, ack: a], not (^needs_attention(team_member))),
+      from [p] in visible_posts(team_member),
+        where: ^dynamic(not (^needs_attention())),
         order_by: [desc: p.id],
         limit: ^Keyword.get(opts, :limit, @posts_per_page)
 
@@ -134,27 +152,30 @@ defmodule Sona.Feed do
   def posts_per_page, do: @posts_per_page
 
   @doc """
-  Records that the scope's team member has read an announcement, keeping
-  the first time if they already had. Returns the post with its
-  `acknowledged_at`.
+  Records that the scope's team member has read an announcement, which
+  also counts as seeing it, keeping the first times if they already had.
+  Returns the post with its `acknowledged_at`.
 
   The id is looked up through the scope: raises `Ecto.NoResultsError` for
-  anything but an announcement from someone else in their audience.
+  anything but an announcement sent to them.
   """
   def acknowledge(%Scope{team_member: %TeamMember{} = team_member}, post_id) do
-    post =
+    delivery =
       Repo.one!(
-        from [p, ack: a] in visible_posts(team_member),
-          where: p.id == ^post_id,
-          where: p.kind == :announcement and p.author_id != ^team_member.id
+        from d in Delivery, where: d.team_member_id == ^team_member.id and d.post_id == ^post_id
       )
 
-    Repo.insert!(%Acknowledgement{post_id: post.id, team_member_id: team_member.id},
-      on_conflict: :nothing,
-      conflict_target: [:team_member_id, :post_id]
+    now = DateTime.utc_now(:second)
+
+    Repo.update_all(
+      from(d in Delivery,
+        where: d.id == ^delivery.id and is_nil(d.acknowledged_at),
+        update: [set: [acknowledged_at: ^now, seen_at: coalesce(d.seen_at, ^now)]]
+      ),
+      []
     )
 
-    {:ok, Repo.one!(from [p, ack: a] in visible_posts(team_member), where: p.id == ^post.id)}
+    {:ok, Repo.one!(from [p] in visible_posts(team_member), where: p.id == ^delivery.post_id)}
   end
 
   @doc """
@@ -165,30 +186,31 @@ defmodule Sona.Feed do
     Enum.each(Audience.topics(team_member), &Phoenix.PubSub.subscribe(Sona.PubSub, &1))
   end
 
-  # Posts for the team member's audience, plus their own, with author,
-  # site and when they acknowledged it (the `:ack` binding).
+  # Posts for the team member's audience, plus their own, plus the
+  # announcements sent to them, with author, site and when they
+  # acknowledged it (the `:delivery` binding).
   defp visible_posts(%TeamMember{} = team_member) do
     from p in Post,
       join: author in assoc(p, :author),
       left_join: s in assoc(p, :site),
       left_join: recipient in assoc(p, :recipient),
       left_join: value in assoc(p, :company_value),
-      left_join: a in Acknowledgement,
-      as: :ack,
-      on: a.post_id == p.id and a.team_member_id == ^team_member.id,
+      left_join: d in Delivery,
+      as: :delivery,
+      on: d.post_id == p.id and d.team_member_id == ^team_member.id,
       where: p.company_id == ^team_member.company_id,
-      where: ^dynamic([p], ^Audience.includes(team_member) or p.author_id == ^team_member.id),
+      where:
+        ^dynamic(
+          [p, delivery: d],
+          ^Audience.includes(team_member) or p.author_id == ^team_member.id or not is_nil(d.id)
+        ),
       preload: [author: author, site: s, recipient: recipient, company_value: value],
-      select_merge: %{acknowledged_at: a.inserted_at}
+      select_merge: %{acknowledged_at: d.acknowledged_at}
   end
 
-  # Someone else's announcement, unacknowledged, posted since the team
-  # member joined (so a new starter isn't handed the whole history).
-  defp needs_attention(%TeamMember{} = team_member) do
-    dynamic(
-      [p, ack: a],
-      p.kind == :announcement and p.author_id != ^team_member.id and is_nil(a.id) and
-        p.inserted_at >= ^team_member.inserted_at
-    )
+  # Sent to them and not yet acknowledged. A new starter has no delivery
+  # for earlier announcements, so isn't handed the whole history.
+  defp needs_attention do
+    dynamic([delivery: d], not is_nil(d.id) and is_nil(d.acknowledged_at))
   end
 end
