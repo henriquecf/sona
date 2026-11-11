@@ -5,8 +5,8 @@ defmodule Sona.Companies.Audience do
 
   Records store it as nullable `site_id` and `department` columns, where
   `nil` means "every". Membership is computed from the team member at
-  query time, never copied into rows, so hires, transfers and leavers show
-  up at once.
+  query time, never copied into rows (except who an announcement was sent
+  to, D-008), so hires, transfers and leavers show up at once.
   """
 
   import Ecto.Query, warn: false
@@ -26,6 +26,21 @@ defmodule Sona.Companies.Audience do
         (is_nil(r.department) or r.department == ^department)
     )
   end
+
+  @doc """
+  A query for the active team members a record's audience includes: the
+  reverse of `includes/1`. Announcements record them as they are posted
+  (D-008).
+  """
+  def members(%{company_id: company_id, site_id: site_id, department: department}) do
+    from(tm in TeamMember, where: tm.company_id == ^company_id and is_nil(tm.left_at))
+    |> narrow(:site_id, site_id)
+    |> narrow(:department, department)
+  end
+
+  # `nil` means every site, or every department.
+  defp narrow(query, _field, nil), do: query
+  defp narrow(query, field, value), do: where(query, [tm], field(tm, ^field) == ^value)
 
   @doc """
   The four PubSub topics whose audiences include the team member: their

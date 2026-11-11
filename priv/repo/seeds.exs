@@ -58,7 +58,9 @@ else
           {"Brighton", "Grace O'Neill", :reception, :manager},
           {"Brighton", "Jakub Kowalski", :reception, :staff},
           {"Brighton", "Elena Popescu", :housekeeping, :staff},
-          {"Brighton", "Sam Taylor", :kitchen, :staff}
+          {"Brighton", "Sam Taylor", :kitchen, :staff},
+          # Leaves after the autumn menu announcement, below.
+          {"Shoreditch", "Ravi Patel", :kitchen, :staff}
         ],
         into: %{} do
       {name, add_team_member.(harbour_lane_sites[site], name, department, role)}
@@ -191,6 +193,14 @@ else
   for name <- ["Kwame Mensah", "Luca Romano", "Sam Taylor", "Daniel Kim"] do
     {:ok, _} = Feed.acknowledge(%Scope{team_member: people[name]}, autumn_menu.id)
   end
+
+  # Others have seen it without tapping "Got it", and one of them has since
+  # left, so its stats show every group (D-008).
+  for name <- ["Chloe Martin", "Elena Popescu", "Ravi Patel"] do
+    :ok = Feed.mark_seen(%Scope{team_member: people[name]}, [autumn_menu])
+  end
+
+  {:ok, _} = Companies.offboard_team_member(people["Ravi Patel"], DateTime.utc_now(:second))
 
   ## Values, and shout-outs that recognise them across sites.
 

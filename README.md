@@ -8,6 +8,8 @@ Sona is a proof of concept for a team app for multi-site hospitality businesses:
   <img src="docs/screenshots/conversation.png" width="160" alt="A channel conversation">
   <img src="docs/screenshots/announcement.png" width="160" alt="Posting an announcement to an audience">
   <img src="docs/screenshots/shout-out.png" width="160" alt="A shout-out for a company value">
+  <img src="docs/screenshots/announcement-stats.png" width="160" alt="Announcement stats: sent, seen, got it and left for each announcement">
+  <img src="docs/screenshots/announcement-who.png" width="160" alt="Who has and hasn't seen or acknowledged one announcement">
 </p>
 
 ## The problem, as I see it
@@ -35,7 +37,9 @@ The reasoning, including the other five shapes I considered and why they lost, i
   - **Membership:** who's in it is worked out from the org chart when you look. New starters see their channels on day one, and leavers lose access straight away. Nobody manages members by hand.
 - **Direct messages:** between any two colleagues, without swapping phone numbers.
 - **Real time:** messages, posts and unread counts update live.
-- **Announcements:** managers post to an audience. Each one stays at the top of Home, under "Needs your attention", until you tap "Got it". That records who acknowledged it and when.
+- **Announcements:** managers post to an audience. Each one stays at the top of Home, under "Needs your attention", until you tap "Got it".
+  - **Who it reached:** posting records everyone it was sent to, so the number it went to doesn't drift as people join, move or leave.
+  - **Stats for managers:** for every announcement, how many it was sent to, have seen it, have tapped "Got it" and have left without doing so, and who. They update live.
 - **Shout-outs:** anyone can recognise a colleague for living one of the company's values, and the whole company sees it.
 - **Multi-company from day one:**
   - **Isolation:** every company's data is fenced off by the scope in each query, and by composite foreign keys in the database.
@@ -59,7 +63,7 @@ mix phx.server     # http://localhost:4000
 
 **The demo data:**
 
-- **Harbour Lane:** a made-up group with a head office and sites in Soho, Shoreditch and Brighton, and 15 people.
+- **Harbour Lane:** a made-up group with a head office and sites in Soho, Shoreditch and Brighton, and 15 people (plus one who has left).
 - **Northfield Inns:** a second company that can't see any of it.
 
 **Two people at once:** to watch real time between two people, each one needs their own cookies. Use a normal window and a private one, or two browser profiles.
@@ -72,8 +76,9 @@ A five-minute tour:
 4. **An announcement.** As **Priya Shah** (a Soho manager): Home → *Announce* → Soho.
    - It appears under "Needs your attention" for everyone at Soho, and nowhere else.
    - Tap *Got it* as Ana, and it moves into her feed.
-5. **A shout-out.** As Ana, use *Give a shout-out* to recognise Sofia for "Own it". **Elena Popescu**, in housekeeping in Brighton, sees it arrive.
-6. **Another company.** Sign in as **Ruth Barker** from Northfield Inns. None of the above exists for her.
+5. **Who saw it.** As **Maya Okafor** (head office): Home → *Stats* → the autumn menu announcement, with everyone it went to in four groups. Keep it open, then open Home as **Sofia Nowak** and tap *Got it* on the autumn menu: she moves from "Not seen yet" to "Seen, not acknowledged", then to "Acknowledged".
+6. **A shout-out.** As Ana, use *Give a shout-out* to recognise Sofia for "Own it". **Elena Popescu**, in housekeeping in Brighton, sees it arrive.
+7. **Another company.** Sign in as **Ruth Barker** from Northfield Inns. None of the above exists for her.
 
 `mix ecto.reset` puts the demo data back.
 
@@ -90,7 +95,7 @@ A five-minute tour:
   - **Company boundaries:** composite foreign keys keep every reference inside one company.
   - **Valid shapes:** check constraints say what a valid channel, direct conversation, announcement or shout-out looks like.
 
-The decisions (D-001 to D-007), data model, glossary and open questions are all in [docs/architecture.md](docs/architecture.md).
+The decisions (D-001 to D-008), data model, glossary and open questions are all in [docs/architecture.md](docs/architecture.md).
 
 ## How I worked with AI
 
@@ -118,5 +123,5 @@ The [session logs](docs/sessions/) summarise each working session: what was deci
   - "on shift now" audiences;
   - pre-shift briefings;
   - quiet hours that hold non-urgent messages until your next shift.
-- **A manager view:** who hasn't acknowledged an announcement yet, and inviting and offboarding people.
+- **A manager view:** inviting, transferring and offboarding people, and reminding whoever hasn't acknowledged an announcement.
 - **Push notifications and phone-number sign-in:** the two biggest gaps before this could really replace WhatsApp.

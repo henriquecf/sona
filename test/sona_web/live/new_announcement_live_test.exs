@@ -55,6 +55,7 @@ defmodule SonaWeb.NewAnnouncementLiveTest do
   test "staff are sent home", %{conn: conn} do
     %{conn: conn} = register_and_log_in_team_member(%{conn: conn})
 
-    assert {:error, {:live_redirect, %{to: "/"}}} = live(conn, ~p"/announcements/new")
+    assert {:error, {:live_redirect, %{to: "/", flash: %{"error" => _}}}} =
+             live(conn, ~p"/announcements/new")
   end
 end

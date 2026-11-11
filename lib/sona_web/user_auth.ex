@@ -201,6 +201,10 @@ defmodule SonaWeb.UserAuth do
       `/no-team`. Mount it after `:require_authenticated`, which handles
       signed-out visitors.
 
+    * `:require_manager` - Requires the team member to be a manager, and
+      sends anyone else back to Home with a flash. Mount it after
+      `:require_team_member`, as a LiveView's own `on_mount`.
+
   ## Examples
 
   Use the `on_mount` lifecycle macro in LiveViews to mount or authenticate
@@ -244,6 +248,23 @@ defmodule SonaWeb.UserAuth do
     case socket.assigns.current_scope do
       %Scope{team_member: %TeamMember{}} -> {:cont, socket}
       _ -> {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/no-team")}
+    end
+  end
+
+  # The context checks the role again on every call.
+  def on_mount(:require_manager, _params, _session, socket) do
+    case socket.assigns.current_scope do
+      %Scope{team_member: %TeamMember{role: :manager}} ->
+        {:cont, socket}
+
+      _ ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(:error, "That page is for managers.")
+          # Home is in the same live_session, so no full page load.
+          |> Phoenix.LiveView.push_navigate(to: ~p"/")
+
+        {:halt, socket}
     end
   end
 

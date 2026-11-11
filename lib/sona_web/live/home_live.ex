@@ -29,6 +29,14 @@ defmodule SonaWeb.HomeLive do
             >
               <.icon name="hero-megaphone" class="size-5" /> Announce
             </.link>
+            <.link
+              :if={@current_scope.team_member.role == :manager}
+              id="announcement-stats"
+              navigate={~p"/announcements/stats"}
+              class="inline-flex min-h-11 items-center gap-2 rounded-full border border-base-300 px-4 text-sm font-semibold transition hover:bg-base-200 active:scale-95"
+            >
+              <.icon name="hero-chart-bar" class="size-5" /> Stats
+            </.link>
           </div>
         </div>
 
@@ -177,6 +185,10 @@ defmodule SonaWeb.HomeLive do
     attention = Feed.list_attention(scope)
     feed = Feed.list_feed(scope)
 
+    # Loading them on the live page counts as seeing them; the static first
+    # render doesn't (D-008).
+    if connected?(socket), do: Feed.mark_seen(scope, attention)
+
     {:ok,
      socket
      |> assign(:page_title, "Home")
@@ -212,6 +224,7 @@ defmodule SonaWeb.HomeLive do
   # post, or a shout-out) goes straight into the feed.
   def handle_info({:post_created, %Post{kind: :announcement} = post}, socket)
       when post.author_id != socket.assigns.current_scope.team_member.id do
+    Feed.mark_seen(socket.assigns.current_scope, [post])
     {:noreply, stream_insert(socket, :attention, post, at: 0)}
   end
 

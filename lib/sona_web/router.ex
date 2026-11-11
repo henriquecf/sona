@@ -67,6 +67,8 @@ defmodule SonaWeb.Router do
       ] do
       live "/", HomeLive, :index
       live "/announcements/new", NewAnnouncementLive, :new
+      live "/announcements/stats", AnnouncementStatsLive.Index, :index
+      live "/announcements/:id/stats", AnnouncementStatsLive.Show, :show
       live "/shout-outs/new", NewShoutOutLive, :new
       live "/chats", ChatsLive, :index
       live "/chats/new", NewConversationLive, :new
